@@ -1,0 +1,43 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+application {
+    mainClass = 'com.game2d.example.snake.SnakeMain'
+}
+
+group = 'com.template'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+test {
+    useJUnitPlatform()
+
+    // Enable detailed test logging
+    testLogging {
+        events "passed", "skipped", "failed"
+        showExceptions true
+        showStackTraces true
+        showStandardStreams true
+    }
+
+    // Define report outputs
+    reports {
+        html.required.set(true) // HTML report
+        junitXml.required.set(true) // XML report
+    }
+}

@@ -1,0 +1,50 @@
+name: Autograding Tests
+
+'on':
+  - push
+  - repository_dispatch
+  - pull_request
+
+permissions:
+  checks: write
+  actions: read
+  contents: read
+
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.10'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: App Test
+        id: app-test
+        uses: classroom-resources/autograding-command-grader@v1
+        with:
+          test-name: App Test
+          setup-command: ''
+          command: "./gradlew clean build --console=plain"
+          timeout: 10
+          max-score: 1
+
+      - name: Autograding Reporter
+        uses: classroom-resources/autograding-grading-reporter@v1
+        env:
+          APP-TEST_RESULTS: "${{steps.app-test.outputs.result}}"
+        with:
+          runners: app-test
