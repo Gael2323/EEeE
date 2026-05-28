@@ -1,13 +1,13 @@
 package com;
 
-import com.game2d.example.snake.SnakeMain;
+import com.miJuego.model.TowerDefenseMain;
 
 /**
- * Arranca el Snake de ejemplo. Ver {@link SnakeMain} y {@code com.game2d.example.snake}.
+ * Arranca el Tower Defense. Ver {@link TowerDefenseMain}.
  */
 public class App {
 
     public static void main(String[] args) {
-        SnakeMain.main(args);
+        TowerDefenseMain.main(args);
     }
 }

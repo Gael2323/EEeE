@@ -51,3 +51,38 @@ controller.start();
 ```
 
 ---
+
+#### 2. Implementación completa del modelo de Tower Defense en com.miJuego.model
+
+**Prompt:**
+
+> Te adjunto una imagen con mi diagrama de clases del Tower Defense. Implementá solo el paquete del modelo (com.miJuego.model o similar): clases concretas y que implementen las interfaces de com.game2d.model (GameModel, FrameSnapshot, Drawable, GameStatus, etc.). No modifiques vista ni controller. Generá un TowerDefenseModel que compile y un TowerDefenseMain mínimo que lo conecte al DefaultGameController. Cualquier comentario que quieras decirme del uml sera bienvenido como consulta.
+
+**Clases / métodos generados:**
+
+```java
+com.miJuego.model.EstadoJuego          → enum { START, PLAYING, GAME_OVER, VICTORY }
+com.miJuego.model.Jugador              → score, health (vida), moneda (coins)
+com.miJuego.model.DañoDeTorre          → interface con ataque(Enemigo): double
+com.miJuego.model.Torre                → abstract class implementing Drawable (costoTorre, tiempoRecarga, towertype, upgrade())
+com.miJuego.model.TorreComun           → extends Torre implements DañoDeTorre
+com.miJuego.model.TorreDeArea          → extends Torre implements DañoDeTorre
+com.miJuego.model.Cañon                → extends Torre implements DañoDeTorre
+com.miJuego.model.TorreFuerte          → extends Torre implements DañoDeTorre
+com.miJuego.model.TorreDeFuego         → extends Torre implements DañoDeTorre
+com.miJuego.model.TorreDeHielo         → extends Torre implements DañoDeTorre
+com.miJuego.model.TorreElectrica       → extends Torre implements DañoDeTorre
+com.miJuego.model.Enemigo              → abstract class implementing Drawable (vida, monedasGeneradas, scoreGenerado, morir())
+com.miJuego.model.Duende               → extends Enemigo
+com.miJuego.model.EnemigoMultiple      → extends Enemigo (se divide al morir)
+com.miJuego.model.EnemigoComun         → extends Enemigo (tieneEscudoElectrico)
+com.miJuego.model.Bala                 → implements Drawable (proyectiles)
+com.miJuego.model.Nivel                → maneja caminos (waypoints) y oleadas de enemigos
+com.miJuego.model.Juego                → bucle principal, actualización de lógica de juego, puntuaciones
+com.miJuego.model.Scoreboard           → persistencia del TOP 10 en archivo scoreboard.txt
+com.miJuego.model.TowerDefenseModel    → implements GameModel (despacha clicks y teclado VK_1-VK_7, VK_U, VK_S, VK_N, VK_R)
+com.miJuego.model.TowerDefenseMain     → inicializa el juego, asocia atajos y arranca DefaultGameController
+```
+
+---
+

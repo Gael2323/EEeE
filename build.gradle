@@ -4,7 +4,7 @@ plugins {
 }
 
 application {
-    mainClass = 'com.game2d.example.snake.SnakeMain'
+    mainClass = 'com.miJuego.model.TowerDefenseMain'
 }
 
 group = 'com.template'
