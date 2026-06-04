@@ -35,6 +35,6 @@ public class TorreComun extends Torre implements DañoDeTorre {
     }
     @Override
     public Optional<String> getImagePath() {
-        return Optional.of("src/main/resources/torre_comun.png"); // Ruta relativa al proyecto
+        return Optional.of(getTowerSprite());
     }
 }

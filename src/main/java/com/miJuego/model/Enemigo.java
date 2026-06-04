@@ -31,6 +31,16 @@ public abstract class Enemigo implements Drawable {
 
     protected float paralizacionTimer = 0f; // Si es mayor a 0, no se mueve
 
+    // Sistema de animación de caminar
+    protected int animFrameCount = 5;        // Cantidad de frames de animación (0 a 4 por defecto)
+    protected float animFrameDuration = 0.15f; // Duración de cada frame en segundos
+    protected float animTimer = 0f;           // Timer acumulador para la animación
+    protected int currentAnimFrame = 0;       // Frame actual de la animación
+
+    // Dimensiones de dibujo para el sprite
+    protected float width = 1.15f;
+    protected float height = 1.15f;
+
     public Enemigo(String id, String enemyType, double vida, int monedasGeneradas, int scoreGenerado) {
         this.id = id;
         this.enemyType = enemyType;
@@ -75,6 +85,24 @@ public abstract class Enemigo implements Drawable {
     public int GetScoreGenerado() {
         return scoreGenerado;
     }
+
+    // Setters públicos para rapidez y dañoBase (usados desde sandbox)
+    public void setRapidez(double rapidez) {
+        this.rapidez = rapidez;
+    }
+
+    public double getRapidez() {
+        return rapidez;
+    }
+
+    public void setDañoBase(double dañoBase) {
+        this.dañoBase = dañoBase;
+    }
+
+    // Helpers de efectos de estado (usados desde sandbox sin acceso a campos protected)
+    public boolean tieneFuego()        { return fuegoTimer > 0; }
+    public boolean tieneRalentizar()   { return ralentizarTimer > 0; }
+    public boolean tieneParalizacion() { return paralizacionTimer > 0; }
 
     // Métodos de juego para actualización
     public double getVelocidadActual() {
@@ -124,6 +152,22 @@ public abstract class Enemigo implements Drawable {
         if (paralizacionTimer > 0) {
             paralizacionTimer -= deltaSeconds;
         }
+
+        // Actualizar animación de caminar (solo si se está moviendo)
+        if (paralizacionTimer <= 0 && animFrameCount > 0) {
+            animTimer += deltaSeconds;
+            if (animTimer >= animFrameDuration) {
+                animTimer -= animFrameDuration;
+                currentAnimFrame = (currentAnimFrame + 1) % animFrameCount;
+            }
+        }
+    }
+
+    /**
+     * Retorna el frame actual de la animación de caminar (0 a animFrameCount-1).
+     */
+    public int getAnimationFrame() {
+        return currentAnimFrame;
     }
 
     public void setPosicion(float x, float y) {
@@ -165,12 +209,12 @@ public abstract class Enemigo implements Drawable {
 
     @Override
     public Float getWidth() {
-        return 0.6f; // Enemigos son un poco más chicos que una celda completa
+        return width;
     }
 
     @Override
     public Float getHeight() {
-        return 0.6f;
+        return height;
     }
 
     @Override

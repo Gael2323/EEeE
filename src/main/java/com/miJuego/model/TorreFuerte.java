@@ -40,4 +40,9 @@ public class TorreFuerte extends Torre implements DañoDeTorre {
         // Color rojo oscuro para torre fuerte
         return new Color(139, 0, 0);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

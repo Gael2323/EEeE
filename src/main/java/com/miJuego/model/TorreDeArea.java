@@ -55,4 +55,9 @@ public class TorreDeArea extends Torre implements DañoDeTorre {
         // Color púrpura para torre de área
         return new Color(128, 0, 128);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

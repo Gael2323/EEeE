@@ -25,6 +25,15 @@ public final class TowerDefenseModel implements GameModel {
     private int lastClickedX = -1;
     private int lastClickedY = -1;
 
+    private long lastClickTime = 0;
+    private int lastClickX = -1;
+    private int lastClickY = -1;
+
+    // Timeout de selección de torre
+    private float selectionTimeElapsed = 0.0f;
+    private int lastHoverX = -1;
+    private int lastHoverY = -1;
+
     public TowerDefenseModel(GameView view) {
         this.view = view;
         this.juego = new Juego();
@@ -44,9 +53,35 @@ public final class TowerDefenseModel implements GameModel {
             }
         }
 
-        // 2. Dibujar una celda seleccionada (Cursor de click anterior)
+        // 2. Dibujar el resaltado de la celda seleccionada (Cursor de click anterior)
         if (lastClickedX >= 0 && lastClickedX < 20 && lastClickedY >= 0 && lastClickedY < 15) {
-            drawables.add(new SelectionCursorDrawable(lastClickedX, lastClickedY));
+            drawables.add(new SelectionHighlightDrawable(lastClickedX, lastClickedY));
+        }
+
+        // 3. Dibujar previsualización fantasma (Ghost) de la torre equipada al hacer hover con el mouse
+        int hoverX = com.miJuego.model.ActualTowerContext.getHoverX();
+        int hoverY = com.miJuego.model.ActualTowerContext.getHoverY();
+        if (hoverX >= 0 && hoverX < 20 && hoverY >= 0 && hoverY < 15 && juego.getEstado() == EstadoJuego.PLAYING) {
+            boolean onPath = nivel.intersectsPath(hoverX, hoverY);
+            boolean hasTower = false;
+            for (Torre t : juego.getTorres()) {
+                if (Math.round(t.getX()) == hoverX && Math.round(t.getY()) == hoverY) {
+                    hasTower = true;
+                    break;
+                }
+            }
+            if (!onPath && !hasTower) {
+                int selectedType = juego.getSelectedTowerType();
+                if (selectedType != 0) {
+                    String path = "assets/ingame/Torre_Reposo.png"; // Default reposo
+                    if (selectedType == 8) {
+                        path = "assets/ingame/torremc_reposo.png"; // McAfee reposo
+                    } else {
+                        path = "assets/ingame/torrecomun4.png"; // Todas las demás usan torrecomun mirando abajo
+                    }
+                    drawables.add(new SelectionCursorDrawable(hoverX, hoverY, path));
+                }
+            }
         }
 
         // 3. Dibujar torres
@@ -76,11 +111,14 @@ public final class TowerDefenseModel implements GameModel {
             visualState = SessionState.PAUSED;
         }
 
-        return new SimpleSnapshot(
-                visualState, 
-                drawables, 
-                buildMenu(), 
-                currentStatus()
+        return new TowerDefenseSnapshot(
+                visualState,
+                drawables,
+                buildMenu(),
+                currentStatus(),
+                juego,
+                lastClickedX,
+                lastClickedY
         );
     }
 
@@ -91,6 +129,24 @@ public final class TowerDefenseModel implements GameModel {
         }
 
         juego.update(deltaSeconds);
+
+        // Control de tiempo de expiración de selección de torre (10 segundos)
+        if (juego.getSelectedTowerType() != 0) {
+            int currentHoverX = com.miJuego.model.ActualTowerContext.getHoverX();
+            int currentHoverY = com.miJuego.model.ActualTowerContext.getHoverY();
+            if (currentHoverX != lastHoverX || currentHoverY != lastHoverY) {
+                lastHoverX = currentHoverX;
+                lastHoverY = currentHoverY;
+                selectionTimeElapsed = 0.0f; // Resetear si el mouse se mueve
+            } else {
+                selectionTimeElapsed += deltaSeconds;
+                if (selectionTimeElapsed >= 10.0f) {
+                    clearTowerSelectionSilently();
+                }
+            }
+        } else {
+            selectionTimeElapsed = 0.0f;
+        }
 
         // Control de fin de juego para guardar score
         EstadoJuego estado = juego.getEstado();
@@ -103,18 +159,18 @@ public final class TowerDefenseModel implements GameModel {
     private void manejarFinDeJuego(EstadoJuego estado) {
         // Ejecutar en hilo de Swing para evitar problemas de concurrencia en JOptionPane
         java.awt.EventQueue.invokeLater(() -> {
-            String mensaje = estado == EstadoJuego.VICTORY 
-                ? "¡FELICITACIONES! Has ganado el juego. Ingrese su nombre para el TOP 10:"
-                : "Game Over. Has perdido. Ingrese su nombre para el TOP 10:";
-            
+            String mensaje = estado == EstadoJuego.VICTORY
+                    ? "¡FELICITACIONES! Has ganado el juego. Ingrese su nombre para el TOP 10:"
+                    : "Game Over. Has perdido. Ingrese su nombre para el TOP 10:";
+
             String name = JOptionPane.showInputDialog(null, mensaje, "Fin de Partida", JOptionPane.QUESTION_MESSAGE);
             if (name == null || name.isBlank()) {
                 name = "Jugador";
             }
-            
+
             int finalScore = (int) juego.getJugador().getScore();
             Scoreboard.save(name, finalScore);
-            
+
             // Mostrar scoreboard TOP 10
             List<Scoreboard.Entry> top10 = Scoreboard.load();
             StringBuilder sb = new StringBuilder("=== TOP 10 MEJORES JUGADORES ===\n\n");
@@ -123,9 +179,9 @@ public final class TowerDefenseModel implements GameModel {
                 sb.append(rank).append(". ").append(entry.toString()).append("\n");
                 rank++;
             }
-            
+
             JOptionPane.showMessageDialog(null, sb.toString(), "Tabla de Posiciones", JOptionPane.INFORMATION_MESSAGE);
-            
+
             // Reiniciar estado listo
             juego.setEstado(EstadoJuego.START);
             scoreSaved = false;
@@ -140,15 +196,22 @@ public final class TowerDefenseModel implements GameModel {
         }
 
         if (input.getKind() == InputKind.POINTER_DOWN) {
+            selectionTimeElapsed = 0.0f; // Reset por click
             float wx = input.getX().orElse(0f);
             float wy = input.getY().orElse(0f);
             int ix = (int) wx;
             int iy = (int) wy;
 
             if (ix >= 0 && ix < 20 && iy >= 0 && iy < 15) {
+                long currentTime = System.currentTimeMillis();
+                boolean isDoubleClick = (ix == lastClickX && iy == lastClickY && (currentTime - lastClickTime) < 400);
+
                 lastClickedX = ix;
                 lastClickedY = iy;
-                
+                lastClickX = ix;
+                lastClickY = iy;
+                lastClickTime = currentTime;
+
                 // Si la partida está corriendo, intentamos colocar o seleccionar torre
                 if (juego.getEstado() == EstadoJuego.PLAYING) {
                     try {
@@ -161,11 +224,19 @@ public final class TowerDefenseModel implements GameModel {
                                 break;
                             }
                         }
-                        
+
                         if (!seleccionada) {
-                            // Intentar colocar torre del tipo seleccionado
-                            juego.placeTower(ix, iy);
-                            view.successMessage("Torre colocada con éxito!");
+                            if (isDoubleClick) {
+                                // Intentar colocar torre del tipo seleccionado
+                                juego.placeTower(ix, iy);
+                                view.successMessage("Torre colocada con éxito!");
+                                // Limpiar el estado de click anterior para no encadenar triples clicks
+                                lastClickX = -1;
+                                lastClickY = -1;
+                                lastClickTime = 0;
+                            } else {
+                                view.successMessage("Celda seleccionada. Haz doble click para colocar la torre.");
+                            }
                         }
                     } catch (IllegalStateException | IllegalArgumentException ex) {
                         // Reenviar a la vista de error
@@ -190,7 +261,11 @@ public final class TowerDefenseModel implements GameModel {
                 juego.getNivelActual().iniciarOleada();
                 sessionState = SessionState.RUNNING;
                 scoreSaved = false;
-                view.successMessage("¡Oleada 1 Iniciada! Teclas 1-7 seleccionan torres.");
+
+                // --- NUEVO: Seteamos la torre inicial en el HUD apenas arranca ---
+                com.miJuego.model.ActualTowerContext.setNombreTorre("Común (Costo: 100)");
+
+                view.successMessage("¡Oleada 1 Iniciada! Teclas 1-8 seleccionan torres.");
             }
             case GameCommands.PAUSE -> {
                 if (sessionState == SessionState.RUNNING) {
@@ -213,6 +288,47 @@ public final class TowerDefenseModel implements GameModel {
                 sessionState = SessionState.RUNNING;
                 view.successMessage("Juego Reanudado");
             }
+            // Teclas 1-7 del row superior llegan como ACTION porque están bindeadas
+            case "1" -> selectTower(1, "Común (Costo: 100)");
+            case "2" -> selectTower(2, "de Área (Costo: 150)");
+            case "3" -> selectTower(3, "Cañón (Costo: 200)");
+            case "4" -> selectTower(4, "Fuerte (Costo: 250)");
+            case "5" -> selectTower(5, "de Fuego (Costo: 180)");
+            case "6" -> selectTower(6, "de Hielo (Costo: 150)");
+            case "7" -> selectTower(7, "Eléctrica (Costo: 220)");
+            case "8" -> selectTower(8, "McAfee (Costo: 175)");
+            case "0" -> clearTowerSelection();
+            // U y S también están bindeadas
+            case "U" -> {
+                if (lastClickedX >= 0 && lastClickedY >= 0) {
+                    try {
+                        juego.upgradeTowerAt(lastClickedX, lastClickedY);
+                        view.successMessage("¡Torre mejorada con éxito!");
+                    } catch (IllegalStateException ex) {
+                        view.errorMessage(ex.getMessage());
+                    }
+                }
+            }
+            case "S" -> {
+                if (lastClickedX >= 0 && lastClickedY >= 0) {
+                    try {
+                        juego.sellTowerAt(lastClickedX, lastClickedY);
+                        view.successMessage("Torre vendida con éxito.");
+                        lastClickedX = -1;
+                        lastClickedY = -1;
+                    } catch (IllegalStateException ex) {
+                        view.errorMessage(ex.getMessage());
+                    }
+                }
+            }
+            case "N" -> {
+                if (juego.getNivelActual().verificarFinDeNivel()) {
+                    juego.nextLevel();
+                    view.successMessage("¡Nivel " + juego.getNivelActual().getNumeroNivel() + " iniciado!");
+                } else {
+                    view.errorMessage("Aún quedan enemigos en este nivel.");
+                }
+            }
             default -> {
             }
         }
@@ -227,14 +343,17 @@ public final class TowerDefenseModel implements GameModel {
         }
 
         // Selección de tipo de torre con 1-7
+        // Selección de tipo de torre ampliada
         switch (key) {
-            case "1", "NumPad-1" -> selectTower(1, "Común (Costo: 100)");
-            case "2", "NumPad-2" -> selectTower(2, "de Área (Costo: 150)");
-            case "3", "NumPad-3" -> selectTower(3, "Cañón (Costo: 200)");
-            case "4", "NumPad-4" -> selectTower(4, "Fuerte (Costo: 250)");
-            case "5", "NumPad-5" -> selectTower(5, "de Fuego (Costo: 180)");
-            case "6", "NumPad-6" -> selectTower(6, "de Hielo (Costo: 150)");
-            case "7", "NumPad-7" -> selectTower(7, "Eléctrica (Costo: 220)");
+            case "1", "NumPad-1", "End" -> selectTower(1, "Común (Costo: 100)");
+            case "2", "NumPad-2", "Down" -> selectTower(2, "de Área (Costo: 150)");
+            case "3", "NumPad-3", "Page Down" -> selectTower(3, "Cañón (Costo: 200)");
+            case "4", "NumPad-4", "Left" ->  selectTower(4, "Fuerte (Costo: 250)");
+            case "5", "NumPad-5", "Clear" -> selectTower(5, "de Fuego (Costo: 180)");
+            case "6", "NumPad-6", "Right" -> selectTower(6, "de Hielo (Costo: 150)");
+            case "7", "NumPad-7", "Home" -> selectTower(7, "Eléctrica (Costo: 220)");
+            case "8", "NumPad-8", "Up" -> selectTower(8, "McAfee (Costo: 175)");
+            case "0", "NumPad-0", "Insert" -> clearTowerSelection();
             
             // Acciones sobre torre seleccionada
             case "U", "u" -> {
@@ -259,7 +378,7 @@ public final class TowerDefenseModel implements GameModel {
                     }
                 }
             }
-            
+
             // Pasar de nivel
             case "N", "n" -> {
                 if (juego.getNivelActual().verificarFinDeNivel()) {
@@ -276,7 +395,25 @@ public final class TowerDefenseModel implements GameModel {
 
     private void selectTower(int type, String description) {
         juego.setSelectedTowerType(type);
+        selectionTimeElapsed = 0.0f;
+        
+        // --- CONEXIÓN CON EL HUD ---
+        com.miJuego.model.ActualTowerContext.setNombreTorre(description);
+        
         view.successMessage("Seleccionada: Torre " + description);
+    }
+
+    private void clearTowerSelection() {
+        juego.setSelectedTowerType(0);
+        selectionTimeElapsed = 0.0f;
+        com.miJuego.model.ActualTowerContext.setNombreTorre("Ninguna");
+        view.successMessage("Selección cancelada");
+    }
+
+    private void clearTowerSelectionSilently() {
+        juego.setSelectedTowerType(0);
+        selectionTimeElapsed = 0.0f;
+        com.miJuego.model.ActualTowerContext.setNombreTorre("Ninguna");
     }
 
     private Menu buildMenu() {
@@ -313,8 +450,13 @@ public final class TowerDefenseModel implements GameModel {
         };
     }
 
+    /** Expone el Juego para herramientas de desarrollo (DevConsole, SandboxConsole). */
+    public Juego getJuego() {
+        return juego;
+    }
+
     // --- Drawables Auxiliares ---
-    
+
     private static class PathTileDrawable implements Drawable {
         private final String id;
         private final float x;
@@ -326,34 +468,48 @@ public final class TowerDefenseModel implements GameModel {
             this.y = y;
         }
 
-        @Override
-        public String getId() { return id; }
-        @Override
-        public Float getX() { return x; }
-        @Override
-        public Float getY() { return y; }
-        @Override
-        public Float getWidth() { return 1.0f; }
-        @Override
-        public Float getHeight() { return 1.0f; }
-        @Override
-        public Optional<String> getImagePath() { return Optional.empty(); }
-        @Override
-        public Optional<URL> getImageUrl() { return Optional.empty(); }
-        @Override
-        public Color getFallbackColor() { return new Color(205, 175, 135); } // Color tierra/arena
-        @Override
-        public FallbackShape getFallbackShape() { return FallbackShape.RECTANGLE; }
-        @Override
-        public int getLayer() { return 0; } // Fondo de camino
+        @Override public String getId() { return id; }
+        @Override public Float getX() { return x; }
+        @Override public Float getY() { return y; }
+        // Ligeramente mayor a 1.0f para cubrir los gaps de sub-pixel entre tiles
+        @Override public Float getWidth()  { return 1.02f; }
+        @Override public Float getHeight() { return 1.02f; }
+        @Override public Optional<String> getImagePath() { return Optional.empty(); }
+        @Override public Optional<URL> getImageUrl() { return Optional.empty(); }
+        // Totalmente transparente — el camino ya está pintado en la imagen de fondo
+        @Override public Color getFallbackColor() { return new Color(0, 0, 0, 0); }
+        @Override public FallbackShape getFallbackShape() { return FallbackShape.RECTANGLE; }
+        @Override public int getLayer() { return 0; }
+    }
+
+    private static class SelectionHighlightDrawable implements Drawable {
+        private final float x, y;
+
+        public SelectionHighlightDrawable(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        @Override public String getId() { return "selection-highlight"; }
+        @Override public Float getX() { return x; }
+        @Override public Float getY() { return y; }
+        @Override public Float getWidth() { return 1.0f; }
+        @Override public Float getHeight() { return 1.0f; }
+        @Override public Optional<String> getImagePath() { return Optional.empty(); }
+        @Override public Optional<URL> getImageUrl() { return Optional.empty(); }
+        @Override public Color getFallbackColor() { return new Color(51, 153, 255, 90); } // Celeste Windows XP semitransparente
+        @Override public FallbackShape getFallbackShape() { return FallbackShape.RECTANGLE; }
+        @Override public int getLayer() { return 12; } // Encima de todo para marcar claramente la celda seleccionada
     }
 
     private static class SelectionCursorDrawable implements Drawable {
         private final float x, y;
+        private final String imagePath;
 
-        public SelectionCursorDrawable(float x, float y) {
+        public SelectionCursorDrawable(float x, float y, String imagePath) {
             this.x = x;
             this.y = y;
+            this.imagePath = imagePath;
         }
 
         @Override
@@ -363,11 +519,11 @@ public final class TowerDefenseModel implements GameModel {
         @Override
         public Float getY() { return y; }
         @Override
-        public Float getWidth() { return 1.0f; }
+        public Float getWidth() { return 2.0f; }
         @Override
-        public Float getHeight() { return 1.0f; }
+        public Float getHeight() { return 2.0f; }
         @Override
-        public Optional<String> getImagePath() { return Optional.empty(); }
+        public Optional<String> getImagePath() { return Optional.ofNullable(imagePath); }
         @Override
         public Optional<URL> getImageUrl() { return Optional.empty(); }
         @Override
@@ -375,7 +531,7 @@ public final class TowerDefenseModel implements GameModel {
         @Override
         public FallbackShape getFallbackShape() { return FallbackShape.RECTANGLE; }
         @Override
-        public int getLayer() { return 2; }
+        public int getLayer() { return 11; } // Dibujado encima de las torres colocadas (que tienen layer 10)
     }
 
     private static class VisualEffectDrawable implements Drawable {

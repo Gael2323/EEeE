@@ -86,3 +86,35 @@ com.miJuego.model.TowerDefenseMain     → inicializa el juego, asocia atajos y 
 
 ---
 
+#### 3. Herramientas de desarrollador — SandboxConsole y DevConsoleMain
+
+**Prompt:**
+
+> Quería hacer algo aparte, como un nivel/juego separado para testear ciertas cosas relacionadas con el Tower Defense. Uno manejable por consola y otro con la interfaz gráfica con una consola de desarrollador tipo Counter-Strike (~).
+
+**Clases / métodos generados:**
+
+```java
+com.miJuego.sandbox.SandboxConsole       → main() con loop Scanner; comandos: spawn, place, upgrade,
+                                            sell, give gold/lives, run N, level N, list, reset, status
+com.miJuego.sandbox.DevCommandExecutor   → execute(String): String; thread-safe (synchronized sobre Juego)
+                                            Comandos: give, god, spawn, killall, place, upgrade, sell,
+                                            next, level, speed, pause, resume, restart, status, clear
+com.miJuego.sandbox.DevConsoleFrame      → JFrame flotante estilo terminal oscuro; JTextPane con colores,
+                                            JTextField con historial arriba/abajo, timestamps por línea
+com.miJuego.sandbox.DevConsoleMain       → main() que arranca TowerDefenseModel + DevConsoleFrame;
+                                            tecla ~ / F1 abre/cierra la consola
+com.miJuego.sandbox.DevConsoleModelWrapper → implements GameModel; intercepta DEV_CONSOLE_TOGGLE
+```
+
+```java
+// Métodos agregados a clases existentes:
+Enemigo.setRapidez(double)      → setter público (antes campo protected)
+Enemigo.setDañoBase(double)     → setter público (antes campo protected)
+Enemigo.tieneFuego()            → helper boolean para sandbox
+Enemigo.tieneRalentizar()       → helper boolean para sandbox
+Enemigo.tieneParalizacion()     → helper boolean para sandbox
+TowerDefenseModel.getJuego()    → expone el Juego para DevCommandExecutor
+```
+
+---

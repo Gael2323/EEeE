@@ -76,4 +76,9 @@ public class TorreElectrica extends Torre implements DañoDeTorre {
         // Color amarillo eléctrico
         return new Color(255, 215, 0);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

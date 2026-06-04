@@ -10,6 +10,8 @@ public class Duende extends Enemigo {
         super(id, "Duende", 40.0, 10, 5);
         this.rapidez = 3.0; // Más rápido que la media
         this.dañoBase = 1.0;
+        this.width = 1.1f;
+        this.height = 1.1f;
     }
 
     @Override

@@ -101,17 +101,17 @@ public class Bala implements Drawable {
 
     @Override
     public Float getWidth() {
-        return 0.15f; // Proyectiles muy pequeños
+        return 0.35f; // Proyectiles ligeramente más grandes para que se note la imagen
     }
 
     @Override
     public Float getHeight() {
-        return 0.15f;
+        return 0.35f;
     }
 
     @Override
     public Optional<String> getImagePath() {
-        return Optional.empty();
+        return Optional.of("assets/ingame/projectil.png");
     }
 
     @Override

@@ -65,4 +65,9 @@ public class TorreDeFuego extends Torre implements DañoDeTorre {
         // Color naranja fuego
         return new Color(255, 69, 0);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

@@ -74,13 +74,35 @@ final class GamePanel extends JPanel {
         float sx = panelW / worldW;
         float sy = panelH / worldH;
 
-        int x = Math.round(drawable.getX() * sx);
-        int y = Math.round(drawable.getY() * sy);
+        boolean isEnemy = drawable.getClass().getSimpleName().contains("Enemigo") ||
+                          drawable.getClass().getSimpleName().contains("PopUp") ||
+                          drawable.getClass().getSimpleName().contains("Duende");
+
+        float drawX = drawable.getX();
+        float drawY = drawable.getY();
+        if (isEnemy) {
+            drawX -= drawable.getWidth() / 2f;
+            drawY -= drawable.getHeight() / 2f;
+        }
+
+        int x = Math.round(drawX * sx);
+        int y = Math.round(drawY * sy);
         int dw = Math.max(1, Math.round(drawable.getWidth() * sx));
         int dh = Math.max(1, Math.round(drawable.getHeight() * sy));
 
         Image img = imageResolver.resolve(drawable, dw, dh);
+        
+        java.awt.Composite originalComposite = g2.getComposite();
+        boolean isCursor = drawable.getId().equals("cursor");
+        if (isCursor) {
+            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.70f));
+        }
+        
         g2.drawImage(img, x, y, dw, dh, null);
+        
+        if (isCursor) {
+            g2.setComposite(originalComposite);
+        }
     }
 
     float toWorldX(int pixelX) {

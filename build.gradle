@@ -4,9 +4,12 @@ plugins {
 }
 
 application {
-    mainClass = 'com.miJuego.model.TowerDefenseMain'
+    mainClass = 'com.miJuego.demo.DemoLauncher'
 }
 
+tasks.named('run', JavaExec) {
+    standardInput = System.in
+}
 group = 'com.template'
 version = '1.0.0'
 

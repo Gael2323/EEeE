@@ -38,20 +38,31 @@ public class Nivel {
         // Definimos caminos basados en un mundo de 20f x 15f
         switch (numeroNivel) {
             case 1:
-                // Entrada izquierda (0,7), zigzag simple, salida derecha (20,12)
-                waypoints.add(new float[]{0f, 7f});
-                waypoints.add(new float[]{6f, 7f});
-                waypoints.add(new float[]{6f, 2f});
-                waypoints.add(new float[]{13f, 2f});
-                waypoints.add(new float[]{13f, 12f});
-                waypoints.add(new float[]{20f, 12f});
-                
-                // Enemigos: 8 Duendes y 2 Enemigos Comunes
-                for (int i = 0; i < 8; i++) {
-                    colaSpawn.add(new Duende("lvl1-duende-" + i));
-                }
-                for (int i = 0; i < 2; i++) {
-                    colaSpawn.add(new EnemigoComun("lvl1-comun-" + i, false)); // Sin escudo
+                // ── Nivel Word ─────────────────────────────────────────────
+                // Coordenadas trazadas píxel a píxel sobre la imagen concept art
+                // (2752×1536) → mundo (20×15):  world = (pixel / imagen) * mundo
+                //
+                // Entrada desde borde derecho a la altura del punto 1
+                waypoints.add(new float[]{20f,     5.225f}); // entrada borde derecho (Y = 535px)
+                waypoints.add(new float[]{12.267f, 5.225f}); // punto 1: 1688x535
+                waypoints.add(new float[]{10.327f, 6.777f}); // punto 2: 1421x694
+                waypoints.add(new float[]{10.247f, 7.139f}); // punto 3: 1410x731
+                waypoints.add(new float[]{10.443f, 7.422f}); // punto 4: 1437x760
+                waypoints.add(new float[]{10.567f, 7.891f}); // punto 5: 1454x808
+                waypoints.add(new float[]{10.058f, 8.428f}); // punto 6: 1384x863
+                waypoints.add(new float[]{10.494f, 9.629f}); // punto 7: 1444x986
+                waypoints.add(new float[]{10.102f, 10.146f});// punto 8: 1390x1039
+                waypoints.add(new float[]{9.041f,  10.703f});// punto 9: 1244x1096
+                waypoints.add(new float[]{7.798f,  11.650f});// punto 10: 1073x1193
+                waypoints.add(new float[]{8.263f,  13.281f});// punto 11: 1137x1360
+                waypoints.add(new float[]{6.265f,  14.902f});// punto 12: 862x1526
+                waypoints.add(new float[]{6.265f,  15f});     // salida borde inferior (X = 862px)
+
+                // Tutorial: 5 Pop-Ups con variantes rotativas
+                spawnInterval = 2.2f;
+                PopUp.Variante[] variantes = PopUp.Variante.values();
+                for (int i = 0; i < 5; i++) {
+                    colaSpawn.add(new PopUp("popup-" + i, variantes[i % variantes.length]));
                 }
                 break;
 
@@ -206,8 +217,7 @@ public class Nivel {
             float[] p1 = waypoints.get(i);
             float[] p2 = waypoints.get(i + 1);
 
-            // Distancia del punto (cx, cy) al segmento p1-p2
-            if (isPointNearSegment(cx, cy, p1[0], p1[1], p2[0], p2[1], 0.75f)) {
+            if (isPointNearSegment(cx, cy, p1[0], p1[1], p2[0], p2[1], 0.4f)) {
                 return true;
             }
         }

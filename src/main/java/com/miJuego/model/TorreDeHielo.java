@@ -65,4 +65,9 @@ public class TorreDeHielo extends Torre implements DañoDeTorre {
         // Color celeste/cyan para hielo
         return new Color(135, 206, 250);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

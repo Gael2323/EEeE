@@ -12,6 +12,8 @@ public class EnemigoComun extends Enemigo {
         this.tieneEscudoElectrico = true; // Por defecto arranca con escudo eléctrico
         this.rapidez = 1.8; // Velocidad estándar
         this.dañoBase = 1.0;
+        this.width = 1.15f;
+        this.height = 1.15f;
     }
 
     public EnemigoComun(String id, boolean tieneEscudoElectrico) {
@@ -19,6 +21,8 @@ public class EnemigoComun extends Enemigo {
         this.tieneEscudoElectrico = tieneEscudoElectrico;
         this.rapidez = 1.8;
         this.dañoBase = 1.0;
+        this.width = 1.15f;
+        this.height = 1.15f;
     }
 
     public boolean isTieneEscudoElectrico() {

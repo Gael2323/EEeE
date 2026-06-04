@@ -50,4 +50,9 @@ public class Cañon extends Torre implements DañoDeTorre {
         // Color gris oscuro metálico para el cañón
         return new Color(105, 105, 105);
     }
+
+    @Override
+    public java.util.Optional<String> getImagePath() {
+        return java.util.Optional.of(getTowerSprite());
+    }
 }

@@ -161,6 +161,7 @@ public class Juego {
         // 4. Torres buscando objetivos y disparando
         for (Torre torre : torres) {
             torre.updateCooldown(deltaSeconds);
+            torre.findTarget(enemigos);
             if (torre.canShoot()) {
                 shootTower(torre, enemigos);
             }
@@ -275,6 +276,11 @@ public class Juego {
             balas.add(new Bala("bala-" + (++idCounter), torre, target, 25.0));
             torre.resetCooldown();
         }
+        else if (torre instanceof TorreMcAfee) {
+            Enemigo target = selectFirstEnemy(targetsInRange);
+            balas.add(new Bala("bala-" + (++idCounter), torre, target, 20.0));
+            torre.resetCooldown();
+        }
     }
 
     private Enemigo selectFirstEnemy(List<Enemigo> list) {
@@ -383,6 +389,7 @@ public class Juego {
             case 5 -> 180;
             case 6 -> 150;
             case 7 -> 220;
+            case 8 -> 175;
             default -> 100;
         };
     }
@@ -397,6 +404,7 @@ public class Juego {
             case 5 -> new TorreDeFuego(tId, ix, iy);
             case 6 -> new TorreDeHielo(tId, ix, iy);
             case 7 -> new TorreElectrica(tId, ix, iy);
+            case 8 -> new TorreMcAfee(tId, ix, iy);
             default -> new TorreComun(tId, ix, iy);
         };
     }
