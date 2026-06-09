@@ -18,7 +18,10 @@ public abstract class Enemigo implements Drawable {
     // Posición y orientación para el juego
     protected float x;
     protected float y;
-    protected int waypointIndex = 0; // Siguiente waypoint al que se dirige
+    
+    protected WaypointNode targetNode;
+    protected int nodosVisitados = 0;
+
     protected double rapidez = 2.0;  // Velocidad base
     protected double dañoBase = 1.0; // Daño que inflige si llega al final
 
@@ -36,6 +39,7 @@ public abstract class Enemigo implements Drawable {
     protected float animFrameDuration = 0.15f; // Duración de cada frame en segundos
     protected float animTimer = 0f;           // Timer acumulador para la animación
     protected int currentAnimFrame = 0;       // Frame actual de la animación
+    protected int currentOctant = 2; // 2 = Abajo por defecto
 
     // Dimensiones de dibujo para el sprite
     protected float width = 1.15f;
@@ -171,20 +175,49 @@ public abstract class Enemigo implements Drawable {
     }
 
     public void setPosicion(float x, float y) {
+        float dx = x - this.x;
+        float dy = y - this.y;
+        if (Math.abs(dx) > 0.001f || Math.abs(dy) > 0.001f) {
+            double angle = Math.atan2(dy, dx);
+            if (angle < 0) angle += 2 * Math.PI;
+            double shifted = angle + Math.PI / 8.0;
+            if (shifted >= 2 * Math.PI) shifted -= 2 * Math.PI;
+            
+            int octant = (int) (shifted / (Math.PI / 4.0));
+            this.currentOctant = switch (octant) {
+                case 0 -> 2; // Derecha
+                case 1 -> 3; // Abajo-Derecha
+                case 2 -> 4; // Abajo
+                case 3 -> 5; // Abajo-Izquierda
+                case 4 -> 6; // Izquierda
+                case 5 -> 7; // Arriba-Izquierda
+                case 6 -> 0; // Arriba
+                case 7 -> 1; // Arriba-Derecha
+                default -> 4;
+            };
+        }
         this.x = x;
         this.y = y;
     }
-
-    public int getWaypointIndex() {
-        return waypointIndex;
+    
+    public int getCurrentOctant() {
+        return currentOctant;
     }
 
-    public void setWaypointIndex(int index) {
-        this.waypointIndex = index;
+    public WaypointNode getTargetNode() {
+        return targetNode;
     }
 
-    public void avanzarWaypoint() {
-        this.waypointIndex++;
+    public void setTargetNode(WaypointNode node) {
+        this.targetNode = node;
+    }
+
+    public int getNodosVisitados() {
+        return nodosVisitados;
+    }
+
+    public void avanzarNodo() {
+        this.nodosVisitados++;
     }
 
     public boolean isDead() {

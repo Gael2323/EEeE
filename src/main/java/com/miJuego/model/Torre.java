@@ -60,7 +60,7 @@ public abstract class Torre implements Drawable {
 
     public String getTowerSprite() {
         if (currentTarget == null) {
-            return "assets/ingame/Torre_Reposo.png"; // Reposo/default
+            return "assets/ingame/" + getSpritePrefix() + "_reposo.png"; // Reposo/default
         }
         double dx = currentTarget.getX() - this.x;
         double dy = currentTarget.getY() - this.y;
@@ -78,15 +78,6 @@ public abstract class Torre implements Drawable {
         }
         
         int octant = (int) (shifted / (Math.PI / 4.0));
-        // Mapeo: atan2 octant -> dirección del sprite
-        // octant 0 = derecha   -> sprite 2 (derecha)
-        // octant 1 = abajo-der -> sprite 3 (abajo-derecha)
-        // octant 2 = abajo     -> sprite 4 (abajo)
-        // octant 3 = abajo-izq -> sprite 5 (abajo-izquierda)
-        // octant 4 = izquierda -> sprite 6 (izquierda)
-        // octant 5 = arriba-iz -> sprite 7 (arriba-izquierda)
-        // octant 6 = arriba    -> sprite 0 (arriba)
-        // octant 7 = arriba-de -> sprite 1 (arriba-derecha)
         int spriteIndex = switch (octant) {
             case 0 -> 2; // Derecha
             case 1 -> 3; // Abajo-Derecha
@@ -98,7 +89,7 @@ public abstract class Torre implements Drawable {
             case 7 -> 1; // Arriba-Derecha
             default -> 4; // Abajo por defecto
         };
-        return "assets/ingame/" + getSpritePrefix() + spriteIndex + ".png";
+        return "assets/ingame/" + getSpritePrefix() + "_" + spriteIndex + ".png";
     }
 
     public Torre(String id, float x, float y, double costoTorre, int tiempoRecarga, String towertype) {
@@ -192,7 +183,7 @@ public abstract class Torre implements Drawable {
 
     @Override
     public Optional<String> getImagePath() {
-        return Optional.empty();
+        return Optional.of(getTowerSprite());
     }
 
     @Override

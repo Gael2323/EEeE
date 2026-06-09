@@ -31,4 +31,31 @@ public interface GameView {
     default void showError(Throwable error) {
         errorMessage(ExceptionMessages.format(error));
     }
+
+    /**
+     * Muestra la ventana emergente de premio de adware falso para el nivel 1.
+     */
+    default void showPrizePopup(Runnable onClose) {
+        onClose.run();
+    }
+
+    /**
+     * Muestra la segunda ventana emergente oficial que confirma la instalación involuntaria.
+     */
+    default void showPrizeResolutionPopup(Runnable onClose) {
+        onClose.run();
+    }
+
+    /**
+     * Inicia la transición post-nivel hacia el Hub/Escritorio XP.
+     *
+     * <p>Hace un fade-out sobre la vista actual usando el GlassPane del JFrame,
+     * luego muestra el escritorio XP con la animación correspondiente al nivel completado.</p>
+     *
+     * @param completedLevel el número de nivel que acaba de terminar
+     */
+    default void showPostLevelHub(int completedLevel) {
+        // Default no-op; SwingGameView lo sobrescribe con el fade+hub real
+    }
 }
+

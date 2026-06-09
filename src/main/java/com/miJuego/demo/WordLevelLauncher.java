@@ -32,7 +32,9 @@ public final class WordLevelLauncher {
             GameViewMessages.getInstance().bind(view);
 
             // ── Modelo ────────────────────────────────────────────────────
-            TowerDefenseModel model = new TowerDefenseModel(view);
+            // Iniciar Nivel 1
+            com.miJuego.model.CameraContext.setWorldBounds(32f, 24f);
+            TowerDefenseModel model = new TowerDefenseModel(view, 1);
 
             // ── Consola de Desarrollador ──────────────────────────────────
             com.miJuego.sandbox.DevCommandExecutor executor = new com.miJuego.sandbox.DevCommandExecutor(model.getJuego());
@@ -40,7 +42,11 @@ public final class WordLevelLauncher {
             com.game2d.model.GameModel wrappedModel = new com.miJuego.sandbox.DevConsoleModelWrapper(model, console);
 
             // ── Controller con keybinds ───────────────────────────────────
+            if (DemoLauncher.currentController != null) {
+                DemoLauncher.currentController.stop();
+            }
             DefaultGameController controller = new DefaultGameController();
+            DemoLauncher.currentController = controller;
             controller.getKeyCommands()
                     .bind(KeyEvent.VK_1, "1")
                     .bind(KeyEvent.VK_2, "2")
@@ -67,8 +73,19 @@ public final class WordLevelLauncher {
                     .bind(KeyEvent.VK_SPACE, GameCommands.PAUSE)
                     .bind(KeyEvent.VK_R, GameCommands.RESTART)
                     .bind(KeyEvent.VK_ENTER, GameCommands.START)
+                    .bind(KeyEvent.VK_PAGE_UP, "ZOOM_IN")
+                    .bind(KeyEvent.VK_PAGE_DOWN, "ZOOM_OUT")
+                    .bind(KeyEvent.VK_ADD, "ZOOM_IN")
+                    .bind(KeyEvent.VK_SUBTRACT, "ZOOM_OUT")
+                    .bind(KeyEvent.VK_PLUS, "ZOOM_IN")
+                    .bind(KeyEvent.VK_MINUS, "ZOOM_OUT")
                     .bind(KeyEvent.VK_BACK_QUOTE, "DEV_CONSOLE_TOGGLE")
-                    .bind(KeyEvent.VK_F1, "DEV_CONSOLE_TOGGLE");
+                    .bind(KeyEvent.VK_F1, "DEV_CONSOLE_TOGGLE")
+                    // ── Cámara ─────────────────────────────────────────────
+                    .bind(KeyEvent.VK_LEFT,  "CAM_LEFT")
+                    .bind(KeyEvent.VK_RIGHT, "CAM_RIGHT")
+                    .bind(KeyEvent.VK_UP,    "CAM_UP")
+                    .bind(KeyEvent.VK_DOWN,  "CAM_DOWN");
 
             controller.bind(wrappedModel, view);
             controller.start();

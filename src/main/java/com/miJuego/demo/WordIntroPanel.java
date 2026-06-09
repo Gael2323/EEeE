@@ -24,6 +24,7 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
 
     // ─── Estados ──────────────────────────────────────────────────────────
     private enum Scene {
+        ZOOM_OUT_INTRO,  // Zooming out from black
         WORD_IDLE,       // Esperando Ctrl+S / click disquete
         INTERNAL_DIALOG, // Diálogo interno del protagonista (estilo Undertale)
         CLIPPY_CONTROL,  // Clippy tomando el control y moviendo el mouse
@@ -32,7 +33,7 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
         DONE
     }
 
-    private Scene scene = Scene.WORD_IDLE;
+    private Scene scene = Scene.ZOOM_OUT_INTRO;
     private int saveAttempts = 0;
     private static final int MAX_ERRORS = 3;
 
@@ -45,6 +46,11 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
     private float virtualMouseY = 300f;
     private boolean showVirtualMouse = false;
     private int clippyControlStep = 0;
+
+    // --- Zoom Out Intro ---
+    private long zoomOutStartTime = 0;
+    private final long ZOOM_OUT_DURATION = 1500;
+    private Timer zoomOutTimer;
 
     // ─── Assets ───────────────────────────────────────────────────────────
     private BufferedImage wordBg;
@@ -149,7 +155,7 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
     }
 
     private void loadAssets() {
-        wordBg       = loadImage("/assets/word/word_background.png");
+        wordBg       = loadImage("/assets/intro/word_original_fondo.png");
         clippySprite = loadImage("/assets/word/clippy_sprite.png");
         systemSprite = loadImage("/assets/word/popup_error_f0.png");
         wordErrorBgs[0] = loadImage("/assets/word/word_error_bg0.png");
@@ -192,6 +198,26 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
         this.onFinished = onFinished;
     }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        startZoomOutIntro();
+    }
+
+    private void startZoomOutIntro() {
+        scene = Scene.ZOOM_OUT_INTRO;
+        zoomOutStartTime = System.currentTimeMillis();
+        zoomOutTimer = new Timer(33, e -> {
+            long elapsed = System.currentTimeMillis() - zoomOutStartTime;
+            if (elapsed >= ZOOM_OUT_DURATION) {
+                scene = Scene.WORD_IDLE;
+                zoomOutTimer.stop();
+            }
+            repaint();
+        });
+        zoomOutTimer.start();
+    }
+
     // ─── Pintado ──────────────────────────────────────────────────────────
     @Override
     protected void paintComponent(Graphics g) {
@@ -200,6 +226,30 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
 
         int w = getWidth();
         int h = getHeight();
+
+        if (scene == Scene.ZOOM_OUT_INTRO) {
+            long elapsed = System.currentTimeMillis() - zoomOutStartTime;
+            float progress = Math.min(1.0f, elapsed / (float)ZOOM_OUT_DURATION);
+            
+            // Zoom goes from 3.0 down to 1.0
+            double scale = 3.0 - (2.0 * progress);
+            
+            if (wordBg != null) {
+                int currentDrawW = (int) (w * scale);
+                int currentDrawH = (int) (h * scale);
+                int drawX = (w - currentDrawW) / 2;
+                int drawY = (h - currentDrawH) / 2;
+                g2.drawImage(wordBg, drawX, drawY, currentDrawW, currentDrawH, null);
+            }
+            
+            // Fade from black
+            float alpha = 1.0f - progress;
+            g2.setColor(new Color(0f, 0f, 0f, alpha));
+            g2.fillRect(0, 0, w, h);
+            
+            g2.dispose();
+            return; // Don't draw the rest of the scene until zoom is done
+        }
 
         // ── Fondo de Word (SIEMPRE visible) ──────────────────────────────
         if (wordBg != null) {

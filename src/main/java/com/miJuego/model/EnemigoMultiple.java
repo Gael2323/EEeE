@@ -29,12 +29,14 @@ public class EnemigoMultiple extends Enemigo {
         // Les bajamos la vida base a la mitad para representar que son hijos más débiles
         e1.setVida(40.0);
         e2.setVida(40.0);
+        e1.setTargetNode(this.targetNode);
+        e2.setTargetNode(this.targetNode);
+        for(int i=0; i<this.nodosVisitados; i++) {
+            e1.avanzarNodo();
+            e2.avanzarNodo();
+        }
         
-        // Heredan el waypoint de destino
-        e1.setWaypointIndex(this.waypointIndex);
-        e2.setWaypointIndex(this.waypointIndex);
-        
-        // El primer hijo se coloca un poco adelante y el otro un poco atrás
+        // Efecto visual: empujarlos un poquito para que se separen de la posicin centralás
         e1.setPosicion(this.x, this.y);
         e2.setPosicion(this.x - 0.2f, this.y);
         

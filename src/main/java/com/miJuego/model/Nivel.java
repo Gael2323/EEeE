@@ -1,10 +1,12 @@
 package com.miJuego.model;
 
 import java.awt.Color;
+import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Random;
 
 public class Nivel {
     private int numeroNivel;
@@ -12,6 +14,7 @@ public class Nivel {
     
     // Configuración del camino del nivel
     private List<float[]> waypoints;
+    private List<WaypointNode> spawnNodes;
     
     // Cola de enemigos por aparecer (oleada)
     private Queue<Enemigo> colaSpawn;
@@ -19,178 +22,261 @@ public class Nivel {
     private float spawnInterval = 1.8f; // Segundos entre spawn de enemigos
     private int totalEnemigosOleada = 0;
     private int enemigosSpawnados = 0;
+    private int selectedInitialSpawnIndex = -1;
+    
+    private int oleadaActual = 1;
+    private int maximaOleadas = 5;
+
+    private Random random = new Random();
+
+    // Límite de área de construcción para Nivel 1 (el documento de Word)
+    private Path2D.Float buildPolygon;
 
     public Nivel(int numeroNivel) {
         this.numeroNivel = numeroNivel;
         this.enemigosRestantes = new ArrayList<>();
         this.colaSpawn = new LinkedList<>();
         this.waypoints = new ArrayList<>();
+        this.spawnNodes = new ArrayList<>();
         configurarNivel();
+    }
+
+    private WaypointNode crearNodo(float px, float py, float scaleX, float scaleY) {
+        WaypointNode node = new WaypointNode(px * scaleX, py * scaleY);
+        waypoints.add(new float[]{node.x, node.y});
+        return node;
     }
 
     private void configurarNivel() {
         waypoints.clear();
+        spawnNodes.clear();
         colaSpawn.clear();
         enemigosRestantes.clear();
         spawnTimer = 0f;
         enemigosSpawnados = 0;
 
-        // Definimos caminos basados en un mundo de 20f x 15f
-        switch (numeroNivel) {
-            case 1:
-                // ── Nivel Word ─────────────────────────────────────────────
-                // Coordenadas trazadas píxel a píxel sobre la imagen concept art
-                // (2752×1536) → mundo (20×15):  world = (pixel / imagen) * mundo
-                //
-                // Entrada desde borde derecho a la altura del punto 1
-                waypoints.add(new float[]{20f,     5.225f}); // entrada borde derecho (Y = 535px)
-                waypoints.add(new float[]{12.267f, 5.225f}); // punto 1: 1688x535
-                waypoints.add(new float[]{10.327f, 6.777f}); // punto 2: 1421x694
-                waypoints.add(new float[]{10.247f, 7.139f}); // punto 3: 1410x731
-                waypoints.add(new float[]{10.443f, 7.422f}); // punto 4: 1437x760
-                waypoints.add(new float[]{10.567f, 7.891f}); // punto 5: 1454x808
-                waypoints.add(new float[]{10.058f, 8.428f}); // punto 6: 1384x863
-                waypoints.add(new float[]{10.494f, 9.629f}); // punto 7: 1444x986
-                waypoints.add(new float[]{10.102f, 10.146f});// punto 8: 1390x1039
-                waypoints.add(new float[]{9.041f,  10.703f});// punto 9: 1244x1096
-                waypoints.add(new float[]{7.798f,  11.650f});// punto 10: 1073x1193
-                waypoints.add(new float[]{8.263f,  13.281f});// punto 11: 1137x1360
-                waypoints.add(new float[]{6.265f,  14.902f});// punto 12: 862x1526
-                waypoints.add(new float[]{6.265f,  15f});     // salida borde inferior (X = 862px)
+        if (numeroNivel == 1) {
+            buildPolygon = new Path2D.Float();
+            buildPolygon.moveTo(8.1279f, 23.4375f);
+            buildPolygon.lineTo(2.0232f, 18.6718f);
+            buildPolygon.lineTo(16.3488f, 7.3281f);
+            buildPolygon.lineTo(32.0f, 17.125f);
+            buildPolygon.lineTo(24.5348f, 23.5f);
+            buildPolygon.closePath();
 
-                // Tutorial: 5 Pop-Ups con variantes rotativas
-                spawnInterval = 2.2f;
-                PopUp.Variante[] variantes = PopUp.Variante.values();
-                for (int i = 0; i < 5; i++) {
-                    colaSpawn.add(new PopUp("popup-" + i, variantes[i % variantes.length]));
-                }
-                break;
+            // Ruta Lineal
+            float[][] pts = {
+                {32f, 8.360f}, {19.627f, 8.360f}, {16.523f, 10.843f},
+                {16.395f, 11.422f}, {16.709f, 11.875f}, {16.907f, 12.626f},
+                {16.093f, 13.485f}, {16.790f, 15.406f}, {16.163f, 16.234f},
+                {14.466f, 17.125f}, {12.477f, 18.640f}, {13.221f, 21.250f},
+                {10.024f, 23.843f}, {10.024f, 24f}
+            };
+            WaypointNode last = null;
+            WaypointNode first = null;
+            for(float[] p : pts) {
+                WaypointNode n = crearNodo(p[0], p[1], 1f, 1f);
+                if (first == null) first = n;
+                if (last != null) last.addSiguiente(n);
+                last = n;
+            }
+            spawnNodes.add(first);
 
-            case 2:
-                // Camino largo en "U"
-                waypoints.add(new float[]{0f, 3f});
-                waypoints.add(new float[]{16f, 3f});
-                waypoints.add(new float[]{16f, 12f});
-                waypoints.add(new float[]{4f, 12f});
-                waypoints.add(new float[]{4f, 7f});
-                waypoints.add(new float[]{20f, 7f});
+            // Wave: 15 Pop-Ups con variantes
+            spawnInterval = 2.0f;
+            for (int i = 0; i < 15; i++) {
+                PopUp.Variante var;
+                if (i < 3) var = PopUp.Variante.ERROR;
+                else if (i < 8) var = PopUp.Variante.PREMIO;
+                else var = PopUp.Variante.DESCARGA;
                 
-                // Enemigos: 6 Duendes, 4 Enemigos Comunes con Escudo
-                for (int i = 0; i < 6; i++) {
-                    colaSpawn.add(new Duende("lvl2-duende-" + i));
-                }
-                for (int i = 0; i < 4; i++) {
-                    colaSpawn.add(new EnemigoComun("lvl2-comun-escudo-" + i, true)); // Con escudo eléctrico
-                }
-                break;
+                PopUp p = new PopUp("popup-" + i, var);
+                colaSpawn.add(p);
+            }
+        } else if (numeroNivel == 99) {
+            // Nivel 99 Simple (Test)
+            buildPolygon = null;
+            
+            // Ruta lineal horizontal simple en el medio
+            float[][] pts = {
+                {0f, 24f}, {16f, 24f}, {32f, 24f}, {48f, 24f}, {64f, 24f}
+            };
+            WaypointNode last = null;
+            WaypointNode first = null;
+            for(float[] p : pts) {
+                WaypointNode n = crearNodo(p[0], p[1], 1f, 1f);
+                if (first == null) first = n;
+                if (last != null) last.addSiguiente(n);
+                last = n;
+            }
+            spawnNodes.add(first);
+            
+            generarEnemigosOleadaAleatoria();
+        } else {
+            // Niveles > 1 (Mundo aleatorio)
+            buildPolygon = null;
+            
+            // La imagen de la papelera es 1672x941. El mundo lógico es 64x48.
+            float scaleX = 64f / 1672f;
+            float scaleY = 48f / 941f;
+            
+            // SPAWNS
+            WaypointNode spawn1 = crearNodo(331, 221, scaleX, scaleY);
+            WaypointNode spawn2 = crearNodo(513, 181, scaleX, scaleY);
+            WaypointNode spawn3 = crearNodo(683, 173, scaleX, scaleY);
+            spawnNodes.add(spawn1);
+            spawnNodes.add(spawn2);
+            spawnNodes.add(spawn3);
 
-            case 3:
-                // Entrada vertical superior (10,0), salida inferior (17,15)
-                waypoints.add(new float[]{10f, 0f});
-                waypoints.add(new float[]{10f, 5f});
-                waypoints.add(new float[]{3f, 5f});
-                waypoints.add(new float[]{3f, 10f});
-                waypoints.add(new float[]{17f, 10f});
-                waypoints.add(new float[]{17f, 15f});
-                
-                // Enemigos: 5 Duendes, 5 Enemigos Comunes, 3 Enemigos Múltiples
-                for (int i = 0; i < 5; i++) {
-                    colaSpawn.add(new Duende("lvl3-duende-" + i));
-                }
-                for (int i = 0; i < 5; i++) {
-                    colaSpawn.add(new EnemigoComun("lvl3-comun-" + i, i % 2 == 0));
-                }
-                for (int i = 0; i < 3; i++) {
-                    colaSpawn.add(new EnemigoMultiple("lvl3-multiple-" + i));
-                }
-                break;
+            // Nodos del camino 1
+            float[][] c1Coords = {
+                {346,230}, {442,308}, {430,356}, {464,398}, {546,440},
+                {462,524}, {439,576}, {467,620}, {550,668}, {727,735},
+                {784,768}, {1092,598}, {1272,691}, {1290,692}, {1376,708},
+                {1455,676}, {1507,623}, {1480,554}, {1438,520} // END
+            };
+            List<WaypointNode> nodosC1 = new ArrayList<>();
+            for(float[] p : c1Coords) {
+                nodosC1.add(crearNodo(p[0], p[1], scaleX, scaleY));
+            }
+            spawn1.addSiguiente(nodosC1.get(0));
+            for(int i=0; i<nodosC1.size()-1; i++) {
+                nodosC1.get(i).addSiguiente(nodosC1.get(i+1));
+            }
 
-            case 4:
-                // Zigzag complejo horizontal
-                waypoints.add(new float[]{0f, 2f});
-                waypoints.add(new float[]{5f, 2f});
-                waypoints.add(new float[]{5f, 13f});
-                waypoints.add(new float[]{10f, 13f});
-                waypoints.add(new float[]{10f, 2f});
-                waypoints.add(new float[]{15f, 2f});
-                waypoints.add(new float[]{15f, 13f});
-                waypoints.add(new float[]{20f, 13f});
-                
-                // Enemigos: Mayor cantidad y rapidez
-                for (int i = 0; i < 8; i++) {
-                    colaSpawn.add(new Duende("lvl4-duende-" + i));
-                }
-                for (int i = 0; i < 6; i++) {
-                    colaSpawn.add(new EnemigoComun("lvl4-comun-" + i, true));
-                }
-                for (int i = 0; i < 5; i++) {
-                    colaSpawn.add(new EnemigoMultiple("lvl4-multiple-" + i));
-                }
-                break;
+            // Nodos del camino 2
+            float[][] c2Coords = {
+                {530,210}, {625,264}, {663,337}, {753,383}, {767,422}, {712,561}
+            };
+            List<WaypointNode> nodosC2 = new ArrayList<>();
+            for(float[] p : c2Coords) {
+                nodosC2.add(crearNodo(p[0], p[1], scaleX, scaleY));
+            }
+            spawn2.addSiguiente(nodosC2.get(0));
+            for(int i=0; i<nodosC2.size()-1; i++) {
+                nodosC2.get(i).addSiguiente(nodosC2.get(i+1));
+            }
+            
+            // Bifurcacion de Spawn 2
+            WaypointNode n2A = crearNodo(523, 643, scaleX, scaleY);
+            n2A.addSiguiente(nodosC1.get(8)); // Se conecta con {550,668} (índice 8 de C1)
+            
+            WaypointNode n2B = crearNodo(980, 407, scaleX, scaleY); // Este es un nodo del camino 3 también
+            
+            nodosC2.get(5).addSiguiente(n2A);
+            nodosC2.get(5).addSiguiente(n2B); // El enemigo decide aleatorio en 712,561
 
-            case 5:
-                // Espiral cerrado, camino de máxima duración
-                waypoints.add(new float[]{0f, 1f});
-                waypoints.add(new float[]{18f, 1f});
-                waypoints.add(new float[]{18f, 13f});
-                waypoints.add(new float[]{2f, 13f});
-                waypoints.add(new float[]{2f, 5f});
-                waypoints.add(new float[]{15f, 5f});
-                waypoints.add(new float[]{15f, 9f});
-                waypoints.add(new float[]{6f, 9f});
-                waypoints.add(new float[]{6f, 7f});
-                waypoints.add(new float[]{20f, 7f});
-                
-                // Enemigos: Oleada masiva con un jefe resistente al final
-                for (int i = 0; i < 10; i++) {
-                    colaSpawn.add(new Duende("lvl5-duende-" + i));
-                }
-                for (int i = 0; i < 8; i++) {
-                    colaSpawn.add(new EnemigoComun("lvl5-comun-" + i, true));
-                }
-                for (int i = 0; i < 6; i++) {
-                    colaSpawn.add(new EnemigoMultiple("lvl5-multiple-" + i));
-                }
-                
-                // Creamos un enemigo especial: Boss (EnemigoComun muy fuerte y lento)
-                EnemigoComun jefe = new EnemigoComun("lvl5-boss", true) {
-                    @Override
-                    public Color getFallbackColor() {
-                        if (paralizacionTimer > 0 || ralentizarTimer > 0 || fuegoTimer > 0) {
-                            return super.getFallbackColor();
-                        }
-                        return new Color(0, 0, 0); // Color negro imponente para el Boss
-                    }
-                };
-                jefe.setVida(1000.0);
-                jefe.rapidez = 0.7; // Muy lento
-                jefe.setMonedasGeneradas(200.0);
-                jefe.setScoreGenerado(150.0);
-                jefe.dañoBase = 5.0; // Resta 5 vidas si cruza
-                colaSpawn.add(jefe);
-                break;
+            // Nodos del camino 3
+            float[][] c3Coords = {
+                {691,180}, {833,245}, {851,343}
+            };
+            List<WaypointNode> nodosC3 = new ArrayList<>();
+            for(float[] p : c3Coords) {
+                nodosC3.add(crearNodo(p[0], p[1], scaleX, scaleY));
+            }
+            spawn3.addSiguiente(nodosC3.get(0));
+            for(int i=0; i<nodosC3.size()-1; i++) {
+                nodosC3.get(i).addSiguiente(nodosC3.get(i+1));
+            }
+            nodosC3.get(2).addSiguiente(n2B); // Conecta {851,343} con {980,407} (Bifurcacion B de c2)
+            
+            // Nodos finales desde n2B ({980,407})
+            float[][] c3BifurCoords = {
+                {1067,413}, {1125,442}, {1139,484}, {1088,541}, {1076,574}, {1107,598}
+            };
+            List<WaypointNode> nodosC3Fin = new ArrayList<>();
+            for(float[] p : c3BifurCoords) {
+                nodosC3Fin.add(crearNodo(p[0], p[1], scaleX, scaleY));
+            }
+            n2B.addSiguiente(nodosC3Fin.get(0));
+            // Aca se conecta con el otro waypoint y el enemigo puede elegir ese camino
+            // Podemos permitir que n2B vuelva a conectarse al camino 1 o siga su propio camino
+            n2B.addSiguiente(nodosC1.get(11)); // Se une a {1092,598} de c1 (opción aleatoria 2)
 
-            default:
-                // Por si hay algún nivel extra inesperado, un camino simple
-                waypoints.add(new float[]{0f, 7.5f});
-                waypoints.add(new float[]{20f, 7.5f});
-                colaSpawn.add(new Duende("extra-duende-0"));
-                break;
+            for(int i=0; i<nodosC3Fin.size()-1; i++) {
+                nodosC3Fin.get(i).addSiguiente(nodosC3Fin.get(i+1));
+            }
+            // El final de la rama se une al camino principal (c1) que va a la salida
+            nodosC3Fin.get(5).addSiguiente(nodosC1.get(11)); // {1107,598} se une a {1092,598}
+
+            generarEnemigosOleadaAleatoria();
         }
 
         totalEnemigosOleada = colaSpawn.size();
     }
 
-    public void iniciarOleada() {
-        configurarNivel();
+    private void generarEnemigosOleadaAleatoria() {
+        // OLEADA ALEATORIA (Dificultad progresiva por nivel y por oleada)
+        float dificultadGlobal = numeroNivel + (oleadaActual * 0.4f);
+        int cantEnemigos = (int) (dificultadGlobal * 8) + random.nextInt(10);
+        spawnInterval = Math.max(0.3f, 2.0f - (dificultadGlobal * 0.12f));
+
+        for(int i=0; i<cantEnemigos; i++) {
+            Enemigo e;
+            int tipo = random.nextInt(100);
+            // Mayor dificultad, más chance de enemigos difíciles
+            if (tipo < 40 - (dificultadGlobal * 2)) {
+                e = new Duende("lvl" + numeroNivel + "-w" + oleadaActual + "-duende-" + i);
+            } else if (tipo < 70 - (dificultadGlobal * 1.5)) {
+                e = new EnemigoComun("lvl" + numeroNivel + "-w" + oleadaActual + "-comun-" + i, random.nextBoolean());
+            } else if (tipo < 90) {
+                e = new EnemigoMultiple("lvl" + numeroNivel + "-w" + oleadaActual + "-multiple-" + i);
+            } else {
+                e = new PopUp("lvl" + numeroNivel + "-w" + oleadaActual + "-popup-" + i, PopUp.Variante.ERROR);
+            }
+
+            // Escalado de stats
+            e.setVida(e.GetVida() * (1 + (dificultadGlobal * 0.15)));
+            
+            colaSpawn.add(e);
+        }
     }
 
-    public boolean verificarFinDeNivel() {
+    public int getOleadaActual() {
+        return oleadaActual;
+    }
+
+    public int getMaximaOleadas() {
+        return maximaOleadas;
+    }
+
+    public void prepararSiguienteOleada() {
+        if (oleadaActual < maximaOleadas) {
+            oleadaActual++;
+            generarEnemigosOleadaAleatoria();
+            totalEnemigosOleada = colaSpawn.size();
+            enemigosSpawnados = 0;
+            this.spawnPaused = true;
+        }
+    }
+
+    public void iniciarOleada() {
+        this.spawnPaused = false;
+    }
+
+    private boolean spawnPaused = false;
+
+    public void setSpawnPaused(boolean spawnPaused) {
+        this.spawnPaused = spawnPaused;
+    }
+
+    public boolean isSpawnPaused() {
+        return spawnPaused;
+    }
+
+    public boolean verificarFinDeOleada() {
         return colaSpawn.isEmpty() && enemigosRestantes.isEmpty();
     }
 
+    public boolean verificarFinDeNivel() {
+        if (numeroNivel == 1) {
+            return verificarFinDeOleada(); // Nivel 1 tiene 1 sola oleada
+        }
+        return verificarFinDeOleada() && oleadaActual >= maximaOleadas;
+    }
+
     public void updateSpawn(float deltaSeconds) {
-        if (colaSpawn.isEmpty()) {
+        if (colaSpawn.isEmpty() || spawnPaused) {
             return;
         }
         spawnTimer += deltaSeconds;
@@ -198,10 +284,23 @@ public class Nivel {
             spawnTimer = 0f;
             Enemigo spawnado = colaSpawn.poll();
             if (spawnado != null) {
-                // Posicionar en el primer waypoint
-                float[] start = waypoints.get(0);
-                spawnado.setPosicion(start[0], start[1]);
-                spawnado.setWaypointIndex(1); // Va hacia el segundo waypoint
+                // Elegir un spawn point
+                WaypointNode spawn;
+                if (numeroNivel == 2 && oleadaActual == 1 && enemigosSpawnados < totalEnemigosOleada / 2) {
+                    if (selectedInitialSpawnIndex == -1) {
+                        selectedInitialSpawnIndex = random.nextInt(spawnNodes.size());
+                    }
+                    // La primera mitad de la oleada 1 sale de un mismo spawn elegido aleatoriamente al inicio
+                    spawn = spawnNodes.get(selectedInitialSpawnIndex);
+                } else {
+                    spawn = spawnNodes.get(random.nextInt(spawnNodes.size()));
+                }
+                
+                spawnado.setPosicion(spawn.x, spawn.y);
+                if (!spawn.siguientes.isEmpty()) {
+                    WaypointNode next = spawn.siguientes.get(random.nextInt(spawn.siguientes.size()));
+                    spawnado.setTargetNode(next);
+                }
                 enemigosRestantes.add(spawnado);
                 enemigosSpawnados++;
             }
@@ -213,30 +312,13 @@ public class Nivel {
         float cx = ix + 0.5f;
         float cy = iy + 0.5f;
 
-        for (int i = 0; i < waypoints.size() - 1; i++) {
-            float[] p1 = waypoints.get(i);
-            float[] p2 = waypoints.get(i + 1);
-
-            if (isPointNearSegment(cx, cy, p1[0], p1[1], p2[0], p2[1], 0.4f)) {
+        // Simplificado para la lista cruda de waypoints. Para grafos es inexacto pero suficiente para prevenir colisiones base.
+        for (float[] wp : waypoints) {
+            if (Math.hypot(wp[0] - cx, wp[1] - cy) < 1.0f) {
                 return true;
             }
         }
         return false;
-    }
-
-    private boolean isPointNearSegment(float px, float py, float x1, float y1, float x2, float y2, float threshold) {
-        float l2 = (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
-        if (l2 == 0) return Math.sqrt((px - x1) * (px - x1) + (py - y1) * (py - y1)) < threshold;
-        
-        // Proyección del punto sobre la línea
-        float t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
-        t = Math.max(0, Math.min(1, t));
-        
-        float projectionX = x1 + t * (x2 - x1);
-        float projectionY = y1 + t * (y2 - y1);
-        
-        double dist = Math.sqrt((px - projectionX) * (px - projectionX) + (py - projectionY) * (py - projectionY));
-        return dist < threshold;
     }
 
     // Getters
@@ -254,5 +336,12 @@ public class Nivel {
 
     public int getEnemigosRestantesCount() {
         return colaSpawn.size() + enemigosRestantes.size();
+    }
+
+    public boolean isValidPlacementArea(int ix, int iy) {
+        if (buildPolygon != null) {
+            return buildPolygon.contains(ix + 0.5f, iy + 0.5f);
+        }
+        return ix >= 0 && ix < com.miJuego.model.CameraContext.getWorldW() && iy >= 0 && iy < com.miJuego.model.CameraContext.getWorldH();
     }
 }

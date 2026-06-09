@@ -118,3 +118,65 @@ TowerDefenseModel.getJuego()    → expone el Juego para DevCommandExecutor
 ```
 
 ---
+
+#### 4. Corrección de límites de colocación en Juego.java
+
+**Prompt:**
+
+> nono, no quiero que vayamos a hacer grandes cambios, primero quiero que terminemos de plantear bien el nivel que tenemos ¿Si?
+
+**Clases / métodos generados:**
+
+```java
+Juego.placeTower(int, int) → Se actualizó el chequeo de límites de ix < 0 || ix >= 20 || iy < 0 || iy >= 15 a ix >= 32 || iy >= 24
+```
+
+---
+
+#### 5. Grilla en perspectiva isométrica y hover dinámico
+
+**Prompt:**
+
+> Okay, vamos por cosas sencillas. No se si ves el icono celeste de la cuadrilla, ese cuadrado que es como un fantasma, queria saber si no podrias poner toda la "grilla" en perspectiva asi hay una estetica cuidada
+
+**Clases / métodos generados:**
+
+```java
+TowerDefenseModel.HoverHighlightDrawable → Nueva clase interna que representa el highlight flotante debajo del cursor
+TowerDefenseModel.capture()              → Lógica para añadir un HoverHighlightDrawable en verde (válido) o rojo (inválido) al arrastrar el mouse con torre seleccionada
+GamePanel.paintDrawable()                 → Intercepta drawables con ID conteniendo "highlight" para renderizar un polígono de rombo isométrico con bordes perfilados en lugar de un fillRect común
+```
+
+---
+
+#### 6. Alineación de torre y cursor fantasma con el centro de la celda
+
+**Prompt:**
+
+> Perfecto, ahora analiza esta imagen, queria ver si podrias hacer que el sprite fantasma tambien estuviera en perspectiva
+
+**Clases / métodos generados:**
+
+```java
+GamePanel.paintDrawable() → Se añadió un desplazamiento de -0.5 celdas en las coordenadas de dibujado (drawX, drawY) para las torres colocadas y el cursor fantasma, logrando centrar la base del sprite de tamaño 2x2 en la celda de tamaño 1x1 del grid.
+```
+
+---
+
+#### 7. Restricciones físicas de área de construcción (hoja del documento) en Nivel 1
+
+**Prompt:**
+
+> Añadir los limites donde se puede y no se puede plantar torres, si queres aplicamos un metodo similar al de los waypoints
+
+**Clases / métodos generados:**
+
+```java
+Nivel.isValidPlacementArea(int, int)   → Nueva validación que comprueba si la celda cae dentro de buildPolygon (hoja de papel) para Nivel 1, o dentro de la grilla para los niveles 2-5
+Juego.placeTower(int, int)              → Utiliza la nueva validación isValidPlacementArea y lanza IllegalStateException si está fuera
+TowerDefenseModel.capture()             → Modifica el cursor hover para validar isValidPlacementArea y pintar en rojo e impedir la visualización fantasma si está fuera de los límites de la hoja
+TowerDefenseLogicTest                  → Se actualizaron las coordenadas de colocación en los tests a (15, 12) para caer dentro del área de la hoja del Nivel 1
+```
+
+---
+

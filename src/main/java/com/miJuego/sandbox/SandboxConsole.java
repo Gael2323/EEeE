@@ -126,7 +126,7 @@ public class SandboxConsole {
             Enemigo e = crearEnemigo(tipo, parts);
             if (e == null) return; // mensaje ya impreso
             e.setPosicion(startX, startY);
-            e.setWaypointIndex(1);
+            // e.setWaypointIndex(1); // Deprecated
             enemigos.add(e);
             spawneados++;
         }

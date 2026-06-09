@@ -202,7 +202,7 @@ public class DevCommandExecutor {
                 Enemigo e = buildEnemigo(tipo, conEscudo);
                 if (e == null) return "⚠  Tipo desconocido: " + tipo + ". Tipos: duende | comun | multiple/idiot | popup | popup-premio | popup-descarga | boss";
                 e.setPosicion(sx, sy);
-                e.setWaypointIndex(wps.size() > 1 ? 1 : 0);
+                // e.setWaypointIndex(wps.size() > 1 ? 1 : 0); // Deprecated
                 enemigos.add(e);
                 n++;
             }

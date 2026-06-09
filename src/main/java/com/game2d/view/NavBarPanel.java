@@ -9,6 +9,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -78,20 +79,24 @@ final class NavBarPanel extends JPanel {
 
         add(centerPanel, BorderLayout.CENTER);
 
-        // ── 3. ZONA SUR: Atajos de Teclado (Tarjeta Amarilla) ─────────────────
-        JLabel hint = new JLabel(" [1-8] Seleccionar  ·  Click colocar  ·  [U] Mejorar  ·  [S] Vender  ·  [Enter] Oleada  ·  [P] Pausa ");
-        hint.setFont(new Font("Tahoma", Font.BOLD, 10));
-        hint.setForeground(new Color(60, 60, 45));
-        hint.setBackground(new Color(255, 255, 220)); // Amarillo post-it suave
-        hint.setOpaque(true);
-        hint.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(210, 200, 150), 1),
-            BorderFactory.createEmptyBorder(1, 10, 1, 10)
-        ));
-
-        JPanel hintWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 1));
+        // ── 3. ZONA SUR: Atajos de Teclado (Globo de Ayuda / Tooltip XP con Clippy) ──
+        JPanel hintWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 2));
         hintWrapper.setOpaque(false);
-        hintWrapper.add(hint);
+
+        ClippyBalloonPanel balloon = new ClippyBalloonPanel();
+
+        JLabel hint = new JLabel(" Atajos: [1-8] Seleccionar  ·  Click colocar  ·  [U] Mejorar  ·  [S] Vender  ·  [Enter] Oleada  ·  [P] Pausa ");
+        hint.setFont(new Font("Tahoma", Font.PLAIN, 10));
+        hint.setForeground(Color.BLACK);
+        
+        javax.swing.ImageIcon clippyIcon = getHelpIcon();
+        if (clippyIcon != null) {
+            hint.setIcon(clippyIcon);
+            hint.setIconTextGap(8);
+        }
+        
+        balloon.add(hint, BorderLayout.CENTER);
+        hintWrapper.add(balloon);
 
         add(hintWrapper, BorderLayout.SOUTH);
 
@@ -203,6 +208,18 @@ final class NavBarPanel extends JPanel {
                 .collect(Collectors.joining(","));
     }
 
+    private ImageIcon getHelpIcon() {
+        try {
+            java.net.URL imgUrl = getClass().getClassLoader().getResource("assets/word/page_clippy.png");
+            if (imgUrl == null) imgUrl = getClass().getClassLoader().getResource("assets/word/doc_bullet.png");
+            if (imgUrl != null) {
+                java.awt.Image img = javax.imageio.ImageIO.read(imgUrl);
+                return new ImageIcon(img.getScaledInstance(14, 14, java.awt.Image.SCALE_SMOOTH));
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     // ─── TARJETAS INDIVIDUALES DEL HUD ─────────────────────────────────────────
     private static class HudCard extends JPanel {
         enum IconType { COIN, HEART, STAR }
@@ -240,32 +257,41 @@ final class NavBarPanel extends JPanel {
             int w = getWidth();
             int h = getHeight();
 
-            // Fondo con gradiente y bordes redondeados
+            // Fondo con gradiente XP sutil
             GradientPaint gp = new GradientPaint(0, 0, startColor, 0, h, endColor);
             g2.setPaint(gp);
-            g2.fillRoundRect(2, 2, w - 5, h - 5, 8, 8);
+            g2.fillRoundRect(2, 2, w - 5, h - 5, 6, 6);
 
-            // Borde fino
+            // Relieve 3D biselado (borde brillante arriba/izquierda, sombra abajo/derecha)
+            g2.setColor(Color.WHITE);
+            g2.drawLine(3, 3, w - 4, 3);
+            g2.drawLine(3, 3, 3, h - 4);
+
+            g2.setColor(borderColor.darker());
+            g2.drawLine(w - 3, 3, w - 3, h - 3);
+            g2.drawLine(3, h - 3, w - 3, h - 3);
+
+            // Borde exterior real XP Luna
             g2.setColor(borderColor);
-            g2.setStroke(new java.awt.BasicStroke(1.5f));
-            g2.drawRoundRect(2, 2, w - 5, h - 5, 8, 8);
+            g2.setStroke(new java.awt.BasicStroke(1.0f));
+            g2.drawRoundRect(2, 2, w - 5, h - 5, 6, 6);
 
-            // Dibujar el icono programático
-            int iconX = 14;
-            int iconY = (h - 22) / 2;
-            int iconSize = 22;
+            // Dibujar el icono programático (más grande, 24px)
+            int iconSize = 24;
+            int iconX = 12;
+            int iconY = (h - iconSize) / 2;
             drawIcon(g2, iconX, iconY, iconSize);
 
-            // Dibujar el texto
-            g2.setColor(textColor);
-            
-            // Título (pequeño arriba)
-            g2.setFont(new Font("Tahoma", Font.BOLD, 9));
-            g2.drawString(title, 45, 14);
+            // Dibujar textos
+            // Título (azul XP sutil / gris clásico)
+            g2.setFont(new Font("Tahoma", Font.BOLD, 8));
+            g2.setColor(textColor.darker());
+            g2.drawString(title, 44, 15);
 
-            // Valor (grande abajo)
-            g2.setFont(new Font("Tahoma", Font.BOLD, 15));
-            g2.drawString(value, 45, 30);
+            // Valor (contraste fuerte negro/azul oscuro)
+            g2.setFont(new Font("Tahoma", Font.BOLD, 14));
+            g2.setColor(new Color(30, 30, 30));
+            g2.drawString(value, 44, 31);
 
             g2.dispose();
         }
@@ -367,6 +393,35 @@ final class NavBarPanel extends JPanel {
                     g2.draw(star);
                 }
             }
+        }
+    }
+
+    /**
+     * Panel contenedor que simula un globo de diálogo/ayuda.
+     */
+    private static class ClippyBalloonPanel extends JPanel {
+        ClippyBalloonPanel() {
+            setLayout(new BorderLayout());
+            setOpaque(false);
+            setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth();
+            int h = getHeight();
+            
+            // Cuerpo del globo amarillo
+            g2.setColor(new Color(255, 255, 225));
+            g2.fillRoundRect(0, 0, w - 1, h - 1, 8, 8);
+            
+            // Borde
+            g2.setColor(Color.BLACK);
+            g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+            
+            g2.dispose();
         }
     }
 }

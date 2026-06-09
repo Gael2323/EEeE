@@ -4,23 +4,17 @@ import java.awt.Color;
 import java.util.Optional;
 
 public class TorreMcAfee extends Torre implements DañoDeTorre {
-    private double dañoBase = 20.0;
-    private double probabilidadEscaneo = 0.3; // 30% de probabilidad de "escanear" y hacer daño extra
+    private double dañoComun = 17.25;
 
     public TorreMcAfee(String id, float x, float y) {
-        super(id, x, y, 175.0, 1000, "TorreMcAfee");
-        this.rango = 3.8;
+        super(id, x, y, 80.0, 500, "TorreMcAfee");
+        this.rango = 3.5;
     }
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = dañoBase * nivelMejora;
-        
-        // Efecto especial: "Escaneo profundo" — probabilidad de hacer daño extra
-        if (Math.random() < probabilidadEscaneo) {
-            dañoEfectivo *= 2.0; // Daño doble al "detectar amenaza"
-        }
-        
+        // Hace daño básico al enemigo y lo devuelve (15% más que TorreComun)
+        double dañoEfectivo = dañoComun * nivelMejora;
         enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
         return dañoEfectivo;
     }
@@ -28,20 +22,10 @@ public class TorreMcAfee extends Torre implements DañoDeTorre {
     @Override
     public void upgrade() {
         nivelMejora++;
-        costoTorre += 85.0;
-        rango += 0.4;
-        dañoBase += 8.0;
-        // Aumenta la probabilidad de escaneo profundo
-        probabilidadEscaneo = Math.min(0.6, probabilidadEscaneo + 0.05);
-        tiempoRecarga = Math.max(600, tiempoRecarga - 50);
-    }
-
-    public double getProbabilidadEscaneo() {
-        return probabilidadEscaneo;
-    }
-
-    public void setProbabilidadEscaneo(double probabilidadEscaneo) {
-        this.probabilidadEscaneo = probabilidadEscaneo;
+        costoTorre += 50.0;
+        rango += 0.5;
+        // Reducimos el tiempo de recarga ligeramente
+        tiempoRecarga = Math.max(500, tiempoRecarga - 80);
     }
 
     @Override

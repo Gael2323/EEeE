@@ -30,6 +30,7 @@ public class PopUp extends Enemigo {
         this.variante = variante;
         this.width = 1.15f;
         this.height = 1.15f;
+        this.animFrameCount = 8; // La animación completa de caminata direccional tiene 8 frames
     }
 
     /** Constructor simple — usa variante ERROR por defecto. */
@@ -52,12 +53,30 @@ public class PopUp extends Enemigo {
     public Optional<String> getImagePath() {
         int frame = getAnimationFrame();
 
-        String base = switch (variante) {
-            case ERROR    -> "assets/ingame/cartelErrorDerecha";
-            case PREMIO   -> "assets/ingame/CartelAnuncioPremio";
-            case DESCARGA -> "assets/ingame/PopUpDownload";
-        };
-        return Optional.of(base + frame + ".png");
+        if (variante == Variante.ERROR) {
+            if (currentOctant == 6) {
+                // Para la izquierda (octante 6), el usuario añadió "img X.png"
+                return Optional.of("assets/ingame/enemies/popup_error/img " + frame + ".png");
+            } else {
+                // Mapeo corregido según las indicaciones
+                int fileIndex = switch (currentOctant) {
+                    case 0 -> 6; // Arriba (0) usa los sprites marcados con 6
+                    case 1 -> 7; // Arriba-Derecha (1) usa los sprites marcados con 7
+                    case 2 -> 0; // Derecha (2) usa los sprites marcados con 0
+                    case 3 -> 1; // Abajo-Derecha (3) usa los sprites marcados con 1
+                    case 4 -> 2; // Abajo (4) usa los sprites marcados con 2
+                    case 5 -> 3; // Abajo-Izquierda (5) usa los sprites marcados con 3
+                    case 7 -> 5; // Arriba-Izquierda (7) usa los sprites marcados con 5
+                    default -> 2;
+                };
+                return Optional.of("assets/ingame/enemies/popup_error/popup_error_" + fileIndex + "_" + frame + ".png");
+            }
+        } else {
+            // Premio y Descarga aún tienen los sprites genéricos viejos de 5 frames (0 a 4)
+            int oldFrame = frame % 5;
+            String base = (variante == Variante.PREMIO) ? "assets/ingame/CartelAnuncioPremio" : "assets/ingame/PopUpDownload";
+            return Optional.of(base + oldFrame + ".png");
+        }
     }
 
     @Override

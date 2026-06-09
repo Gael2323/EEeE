@@ -75,17 +75,22 @@ final class DefaultImageResolver implements ImageResolver {
         }
         int w = Math.max(1, widthPx);
         int h = Math.max(1, heightPx);
-        Image scaled = source.getScaledInstance(w, h, Image.SCALE_SMOOTH);
         BufferedImage buffer = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = buffer.createGraphics();
-        g.drawImage(scaled, 0, 0, null);
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        g.drawImage(source, 0, 0, w, h, null);
         g.dispose();
         return buffer;
     }
 
     private String cacheKey(Renderable renderable, int widthPx, int heightPx) {
         String source = renderable.getImagePath().orElseGet(
-                () -> renderable.getImageUrl().map(URL::toString).orElse("fallback"));
+                () -> renderable.getImageUrl().map(URL::toString).orElseGet(
+                        () -> "fallback_" + renderable.getFallbackColor().getRGB() + "_" + renderable.getFallbackShape().name()
+                )
+        );
         return source + "@" + widthPx + "x" + heightPx;
     }
 }

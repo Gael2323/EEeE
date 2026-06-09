@@ -40,7 +40,18 @@ public final class TowerDefenseMain {
                 .bind(KeyEvent.VK_P, GameCommands.PAUSE)
                 .bind(KeyEvent.VK_SPACE, GameCommands.PAUSE)
                 .bind(KeyEvent.VK_R, GameCommands.RESTART)
-                .bind(KeyEvent.VK_ENTER, GameCommands.START);
+                .bind(KeyEvent.VK_ENTER, GameCommands.START)
+                .bind(KeyEvent.VK_PAGE_UP, "ZOOM_IN")
+                .bind(KeyEvent.VK_PAGE_DOWN, "ZOOM_OUT")
+                .bind(KeyEvent.VK_ADD, "ZOOM_IN")
+                .bind(KeyEvent.VK_SUBTRACT, "ZOOM_OUT")
+                .bind(KeyEvent.VK_PLUS, "ZOOM_IN")
+                .bind(KeyEvent.VK_MINUS, "ZOOM_OUT")
+                // ── Cámara ──────────────────────────────────────────────────
+                .bind(KeyEvent.VK_LEFT,  "CAM_LEFT")
+                .bind(KeyEvent.VK_RIGHT, "CAM_RIGHT")
+                .bind(KeyEvent.VK_UP,    "CAM_UP")
+                .bind(KeyEvent.VK_DOWN,  "CAM_DOWN");
 
         controller.bind(model, view);
         controller.start();

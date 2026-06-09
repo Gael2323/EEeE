@@ -44,8 +44,13 @@ public class Juego {
     }
 
     public void restart() {
-        this.jugador = new Jugador(0, 20, 150); // 20 vidas, 150 monedas
-        this.nivelActual = new Nivel(1);
+        restart(nivelActual != null ? nivelActual.getNumeroNivel() : 1);
+    }
+
+    public void restart(int levelNum) {
+        int initialCoins = (levelNum >= 2) ? 400 : 150;
+        this.jugador = new Jugador(0, 20, initialCoins); // 20 vidas, oro inicial según nivel
+        this.nivelActual = new Nivel(levelNum);
         this.torres.clear();
         this.balas.clear();
         this.efectosVisuales.clear();
@@ -96,29 +101,31 @@ public class Juego {
             }
 
             // Movimiento
-            int wpIdx = enemigo.getWaypointIndex();
-            if (wpIdx < waypoints.size()) {
-                float[] wp = waypoints.get(wpIdx);
-                float dx = wp[0] - enemigo.getX();
-                float dy = wp[1] - enemigo.getY();
+            WaypointNode targetNode = enemigo.getTargetNode();
+            if (targetNode != null) {
+                float dx = targetNode.x - enemigo.getX();
+                float dy = targetNode.y - enemigo.getY();
                 double dist = Math.sqrt(dx * dx + dy * dy);
                 double speed = enemigo.getVelocidadActual();
 
                 if (dist <= speed * deltaSeconds) {
-                    // Llegó al waypoint
-                    enemigo.setPosicion(wp[0], wp[1]);
-                    enemigo.avanzarWaypoint();
+                    // Llegó al nodo
+                    enemigo.setPosicion(targetNode.x, targetNode.y);
+                    enemigo.avanzarNodo();
                     
-                    // Si ya pasó el último waypoint, entra a la base
-                    if (enemigo.getWaypointIndex() >= waypoints.size()) {
+                    if (targetNode.siguientes.isEmpty()) {
                         enemyIterator.remove();
                         jugador.decreaseHealth((int) enemigo.dañorBase());
                         if (jugador.getHealth() <= 0) {
                             estado = EstadoJuego.GAME_OVER;
                         }
+                    } else {
+                        // Siguiente rama (aleatoria si hay bifurcación)
+                        int randomIndex = (int) (Math.random() * targetNode.siguientes.size());
+                        enemigo.setTargetNode(targetNode.siguientes.get(randomIndex));
                     }
                 } else {
-                    // Avanzar hacia el waypoint
+                    // Avanzar hacia el nodo
                     float newX = enemigo.getX() + (float) (dx / dist * speed * deltaSeconds);
                     float newY = enemigo.getY() + (float) (dy / dist * speed * deltaSeconds);
                     enemigo.setPosicion(newX, newY);
@@ -130,40 +137,74 @@ public class Juego {
 
         // 3. Actualizar proyectiles (balas)
         Iterator<Bala> bIt = balas.iterator();
+        java.util.List<Bala> nuevasBalas = new java.util.ArrayList<>();
+        
         while (bIt.hasNext()) {
             Bala bala = bIt.next();
             bala.update(deltaSeconds);
             if (bala.isHit()) {
                 bIt.remove();
                 
-                // Efecto splash adicional si es cañón
-                if (bala.getSourceTower() instanceof Cañon) {
-                    Cañon cañon = (Cañon) bala.getSourceTower();
+                // Efecto splash adicional si es Avast
+                if (bala.getSourceTower() instanceof TorreAvast) {
+                    TorreAvast avast = (TorreAvast) bala.getSourceTower();
                     efectosVisuales.add(new VisualEffect(
                         bala.getX(), bala.getY(), 0, 0, 
-                        0.25f, "explosion", (float) cañon.getAreaAGolpear()
+                        0.5f, "explosion", 2.0f
                     ));
                     
-                    double rangeSq = cañon.getAreaAGolpear() * cañon.getAreaAGolpear();
+                    double rangeSq = 2.0f * 2.0f; // Splash radius = 2 celdas
                     for (Enemigo e : enemigos) {
                         if (e != bala.getTarget()) {
                             double dx = e.getX() - bala.getX();
                             double dy = e.getY() - bala.getY();
                             if (dx * dx + dy * dy <= rangeSq) {
-                                e.setVida(e.GetVida() - 15.0 * cañon.getNivelMejora()); // Daño splash
+                                e.setVida(e.GetVida() - (avast.isManualTargetingMode() ? 20.0 : 15.0) * avast.getNivelMejora()); // Daño splash. Mayor si es en modo zona
                             }
+                        }
+                    }
+                } else if (bala.getSourceTower() instanceof TorreMessenger messenger && bala.getTarget() != null) {
+                    int bounces = bala.getBounces();
+                    if (bounces < messenger.getRebotesMaximos()) {
+                        Enemigo nextTarget = null;
+                        double closestSq = messenger.getRangoDeRebote() * messenger.getRangoDeRebote();
+                        for (Enemigo e : enemigos) {
+                            if (e != bala.getTarget() && e.GetVida() > 0 && !bala.getHitEnemies().contains(e)) {
+                                double dx = e.getX() - bala.getTarget().getX();
+                                double dy = e.getY() - bala.getTarget().getY();
+                                double distSq = dx * dx + dy * dy;
+                                if (distSq <= closestSq) {
+                                    closestSq = distSq;
+                                    nextTarget = e;
+                                }
+                            }
+                        }
+                        if (nextTarget != null) {
+                            Bala newBala = new Bala("bala-" + (++idCounter), messenger, nextTarget, bala.getDaño() * 0.8, bala.getTarget().getX() + 0.3f, bala.getTarget().getY() + 0.3f);
+                            newBala.setBounces(bounces + 1);
+                            newBala.getHitEnemies().addAll(bala.getHitEnemies());
+                            newBala.getHitEnemies().add(bala.getTarget());
+                            nuevasBalas.add(newBala);
                         }
                     }
                 }
             }
         }
+        
+        // Agregar los rebotes generados
+        balas.addAll(nuevasBalas);
 
         // 4. Torres buscando objetivos y disparando
         for (Torre torre : torres) {
             torre.updateCooldown(deltaSeconds);
             torre.findTarget(enemigos);
             if (torre.canShoot()) {
-                shootTower(torre, enemigos);
+                if (torre instanceof TorreAvast avast && avast.isManualTargetingMode()) {
+                    balas.add(new Bala("bala-" + (++idCounter), torre, null, 25.0 * avast.getNivelMejora()));
+                    torre.resetCooldown();
+                } else {
+                    shootTower(torre, enemigos);
+                }
             }
         }
 
@@ -252,12 +293,33 @@ public class Juego {
             balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
             torre.resetCooldown();
         } 
-        else if (torre instanceof TorreDeFuego) {
+        else if (torre instanceof TorreFirefox) {
             Enemigo target = selectFirstEnemy(targetsInRange);
-            ((TorreDeFuego) torre).setObjetivo(target);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 5.0));
+            // TorreFirefox ataca al primero y aplica mucho daño
+            balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
             torre.resetCooldown();
         } 
+        else if (torre instanceof TorreInternetExplorer) {
+            Enemigo target = null;
+            // Primero buscamos un enemigo que no esté ralentizado
+            for (Enemigo e : targetsInRange) {
+                if (!e.tieneRalentizar()) {
+                    if (target == null || e.getNodosVisitados() > target.getNodosVisitados() || 
+                        (e.getNodosVisitados() == target.getNodosVisitados() && e.getTargetNode() != null && target.getTargetNode() != null &&
+                         Math.hypot(e.getTargetNode().x - e.getX(), e.getTargetNode().y - e.getY()) < 
+                         Math.hypot(target.getTargetNode().x - target.getX(), target.getTargetNode().y - target.getY()))) {
+                        target = e;
+                    }
+                }
+            }
+            // Si todos están ralentizados, atacamos al primero
+            if (target == null) {
+                target = selectFirstEnemy(targetsInRange);
+            }
+            ((TorreInternetExplorer) torre).setObjetivo(target);
+            balas.add(new Bala("bala-" + (++idCounter), torre, target, 2.0)); // Poco daño
+            torre.resetCooldown();
+        }
         else if (torre instanceof TorreDeHielo) {
             Enemigo target = selectFirstEnemy(targetsInRange);
             ((TorreDeHielo) torre).setObjetivo(target);
@@ -270,9 +332,8 @@ public class Juego {
             balas.add(new Bala("bala-" + (++idCounter), torre, target, 10.0));
             torre.resetCooldown();
         }
-        else if (torre instanceof Cañon) {
+        else if (torre instanceof TorreAvast) {
             Enemigo target = selectFirstEnemy(targetsInRange);
-            ((Cañon) torre).setObjetivo(target);
             balas.add(new Bala("bala-" + (++idCounter), torre, target, 25.0));
             torre.resetCooldown();
         }
@@ -281,22 +342,27 @@ public class Juego {
             balas.add(new Bala("bala-" + (++idCounter), torre, target, 20.0));
             torre.resetCooldown();
         }
+        else if (torre instanceof TorreMessenger) {
+            Enemigo target = selectFirstEnemy(targetsInRange);
+            balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
+            torre.resetCooldown();
+        }
     }
 
     private Enemigo selectFirstEnemy(List<Enemigo> list) {
         Enemigo first = list.get(0);
         for (Enemigo e : list) {
-            // El más avanzado es el que tiene mayor waypointIndex.
-            // Si tienen el mismo, el que esté más cerca del waypoint de destino.
-            if (e.getWaypointIndex() > first.getWaypointIndex()) {
+            if (e.getNodosVisitados() > first.getNodosVisitados()) {
                 first = e;
-            } else if (e.getWaypointIndex() == first.getWaypointIndex()) {
-                // Distancia a waypoint
-                float[] wp = nivelActual.getWaypoints().get(e.getWaypointIndex());
-                double distE = Math.hypot(wp[0] - e.getX(), wp[1] - e.getY());
-                double distF = Math.hypot(wp[0] - first.getX(), wp[1] - first.getY());
-                if (distE < distF) {
-                    first = e;
+            } else if (e.getNodosVisitados() == first.getNodosVisitados()) {
+                WaypointNode wpE = e.getTargetNode();
+                WaypointNode wpF = first.getTargetNode();
+                if (wpE != null && wpF != null) {
+                    double distE = Math.hypot(wpE.x - e.getX(), wpE.y - e.getY());
+                    double distF = Math.hypot(wpF.x - first.getX(), wpF.y - first.getY());
+                    if (distE < distF) {
+                        first = e;
+                    }
                 }
             }
         }
@@ -309,14 +375,19 @@ public class Juego {
             return false;
         }
 
-        // Validar coordenadas dentro del grid de 20x15
-        if (ix < 0 || ix >= 20 || iy < 0 || iy >= 15) {
+        // Validar coordenadas dentro del grid dinámico
+        if (ix < 0 || ix >= CameraContext.getWorldW() || iy < 0 || iy >= CameraContext.getWorldH()) {
             throw new IllegalArgumentException("Posición fuera de límites");
         }
 
         // Verificar si es camino
         if (nivelActual.intersectsPath(ix, iy)) {
             throw new IllegalStateException("No se pueden colocar torres en el camino");
+        }
+
+        // Verificar si está dentro de los límites de construcción del nivel
+        if (!nivelActual.isValidPlacementArea(ix, iy)) {
+            throw new IllegalStateException("Solo puedes colocar torres dentro del documento");
         }
 
         // Verificar si ya hay una torre
@@ -383,13 +454,13 @@ public class Juego {
     private int getTowerCost(int type) {
         return switch (type) {
             case 1 -> 100;
-            case 2 -> 150;
-            case 3 -> 200;
-            case 4 -> 250;
-            case 5 -> 180;
-            case 6 -> 150;
-            case 7 -> 220;
-            case 8 -> 175;
+            case 2 -> 80;
+            case 3 -> 150;
+            case 4 -> 200;
+            case 5 -> 250;
+            case 6 -> 180;
+            case 7 -> 175;
+            case 8 -> 220;
             default -> 100;
         };
     }
@@ -398,13 +469,13 @@ public class Juego {
         String tId = "torre-" + (++idCounter);
         return switch (type) {
             case 1 -> new TorreComun(tId, ix, iy);
-            case 2 -> new TorreDeArea(tId, ix, iy);
-            case 3 -> new Cañon(tId, ix, iy);
-            case 4 -> new TorreFuerte(tId, ix, iy);
-            case 5 -> new TorreDeFuego(tId, ix, iy);
-            case 6 -> new TorreDeHielo(tId, ix, iy);
-            case 7 -> new TorreElectrica(tId, ix, iy);
-            case 8 -> new TorreMcAfee(tId, ix, iy);
+            case 2 -> new TorreMcAfee(tId, ix, iy);
+            case 3 -> new TorreDeArea(tId, ix, iy);
+            case 4 -> new TorreAvast(tId, ix, iy);
+            case 5 -> new TorreFuerte(tId, ix, iy);
+            case 6 -> new TorreFirefox(tId, ix, iy);
+            case 7 -> new TorreInternetExplorer(tId, ix, iy);
+            case 8 -> new TorreMessenger(tId, ix, iy);
             default -> new TorreComun(tId, ix, iy);
         };
     }

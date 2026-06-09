@@ -16,7 +16,7 @@ import java.io.IOException;
  * <p>Todo se pinta manualmente con {@link Graphics2D} para tener control
  * total del pixel art sin depender de Look&amp;Feel de Swing.</p>
  */
-public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionListener {
+public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionListener, KeyListener {
 
     // ─── Paleta de colores Windows XP ────────────────────────────────────
     private static final Color XP_TITLE_BAR_TOP    = new Color(0, 88, 238);
@@ -50,6 +50,15 @@ public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionL
     private final Rectangle[] buttonRects = new Rectangle[3];
     private Rectangle closeRect = new Rectangle();
 
+    // --- Audio y Animación ---
+    private javax.sound.sampled.Clip bgMusic;
+    private BufferedImage[] animFrames = new BufferedImage[5];
+    private boolean isPlayingIntro = false;
+    private long introStartTime = 0;
+    private final long INTRO_DURATION_MS = 11000;
+    private Timer renderTimer;
+    private static boolean hasPlayedIntroThisSession = false;
+
     // Callback para cuando el usuario elige una opción
     private Runnable onJugar;
     private Runnable onOpciones;
@@ -60,16 +69,91 @@ public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionL
         setBackground(Color.BLACK);
         addMouseListener(this);
         addMouseMotionListener(this);
+        addKeyListener(this);
+        setFocusable(true);
 
-        // Cargar imagen de fondo
+        // Cargar frames de animación
+        for (int i = 0; i < 5; i++) {
+            try {
+                java.net.URL frameUrl = getClass().getResource("/assets/menu/Animacion_intro" + i + ".png");
+                if (frameUrl != null) animFrames[i] = ImageIO.read(frameUrl);
+            } catch (Exception e) {}
+        }
+
+        // Cargar imagen de fondo de la portada
         try {
-            desktopBg = ImageIO.read(
-                    getClass().getResourceAsStream("/assets/menu/xp_desktop.png")
-            );
-        } catch (IOException | IllegalArgumentException e) {
-            System.err.println("No se pudo cargar xp_desktop.png: " + e.getMessage());
+            java.net.URL portadaUrl = getClass().getResource("/assets/menu/portada.png");
+            if (portadaUrl != null) {
+                desktopBg = ImageIO.read(portadaUrl);
+            } else {
+                // Fallback si no está la portada aún
+                desktopBg = ImageIO.read(getClass().getResourceAsStream("/assets/menu/xp_desktop.png"));
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo cargar la imagen de portada: " + e.getMessage());
             desktopBg = null;
         }
+    }
+
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        requestFocusInWindow();
+        startMusicAndAnimation();
+    }
+
+    private void startMusicAndAnimation() {
+        if (bgMusic != null && bgMusic.isRunning()) return;
+        try {
+            java.net.URL url = getClass().getResource("/assets/menu/Buddy_Attacks! Main Theme.mp3");
+            if (url == null) return;
+            javax.sound.sampled.AudioInputStream in = javax.sound.sampled.AudioSystem.getAudioInputStream(url);
+            javax.sound.sampled.AudioFormat baseFormat = in.getFormat();
+            javax.sound.sampled.AudioFormat decodedFormat = new javax.sound.sampled.AudioFormat(
+                    javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED,
+                    baseFormat.getSampleRate(), 16, baseFormat.getChannels(),
+                    baseFormat.getChannels() * 2, baseFormat.getSampleRate(), false);
+            javax.sound.sampled.AudioInputStream din = javax.sound.sampled.AudioSystem.getAudioInputStream(decodedFormat, in);
+            bgMusic = javax.sound.sampled.AudioSystem.getClip();
+            bgMusic.open(din);
+            bgMusic.loop(javax.sound.sampled.Clip.LOOP_CONTINUOUSLY);
+
+            if (!hasPlayedIntroThisSession) {
+                isPlayingIntro = true;
+                introStartTime = System.currentTimeMillis();
+                hasPlayedIntroThisSession = true;
+            } else {
+                isPlayingIntro = false;
+                // Si ya se jugó la intro, saltamos directamente al segundo 11
+                bgMusic.setMicrosecondPosition(11000000);
+            }
+            
+            if (renderTimer != null) renderTimer.stop();
+            renderTimer = new Timer(33, e -> {
+                if (isPlayingIntro) {
+                    if (System.currentTimeMillis() - introStartTime >= INTRO_DURATION_MS) {
+                        isPlayingIntro = false;
+                        renderTimer.stop();
+                    }
+                    repaint();
+                } else {
+                    renderTimer.stop();
+                    repaint();
+                }
+            });
+            renderTimer.start();
+        } catch (Exception e) {
+            System.err.println("Error music: " + e.getMessage());
+        }
+    }
+
+    public void stopMusic() {
+        if (bgMusic != null) {
+            bgMusic.stop();
+            bgMusic.close();
+            bgMusic = null;
+        }
+        if (renderTimer != null) renderTimer.stop();
     }
 
     // ─── Setters de callbacks ────────────────────────────────────────────
@@ -88,84 +172,93 @@ public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionL
         int w = getWidth();
         int h = getHeight();
 
-        // 1. Fondo del escritorio XP
+        if (isPlayingIntro) {
+            long elapsed = System.currentTimeMillis() - introStartTime;
+            if (elapsed >= INTRO_DURATION_MS) {
+                isPlayingIntro = false;
+            } else {
+                paintIntroAnimation(g2, w, h, elapsed);
+                g2.dispose();
+                return;
+            }
+        }
+
+        // 1. Fondo (Portada)
         if (desktopBg != null) {
             g2.drawImage(desktopBg, 0, 0, w, h, null);
         } else {
-            // Fallback: color teal clásico
-            g2.setColor(new Color(58, 110, 165));
+            g2.setColor(Color.BLACK);
             g2.fillRect(0, 0, w, h);
+            g2.setColor(Color.WHITE);
+            g2.drawString("Falta portada.png en assets/menu", 20, 20);
         }
 
-        // 2. Overlay oscuro semi-transparente
-        g2.setColor(OVERLAY_COLOR);
-        g2.fillRect(0, 0, w, h);
+        // 2. Botones del menú (Posicionados abajo al centro para encajar en el recuadro negro)
+        int btnW = 180;
+        int btnH = 30;
+        int btnGap = 12;
+        // Ajustamos la posición: un poco más arriba y un poco a la derecha del centro exacto
+        int startY = h - 185; 
+        int btnX = (w - btnW) / 2 + 45;
 
-        // 3. Ventana del "instalador" centrada
-        int dx = (w - DIALOG_W) / 2;
-        int dy = (h - DIALOG_H) / 2;
-        paintDialogWindow(g2, dx, dy);
+        for (int i = 0; i < 3; i++) {
+            int btnY = startY + i * (btnH + btnGap);
+            buttonRects[i] = new Rectangle(btnX, btnY, btnW, btnH);
+            paintMenuButton(g2, btnX, btnY, btnW, btnH, buttonLabels[i], i == hoveredButton);
+        }
 
         g2.dispose();
     }
 
-    private void paintDialogWindow(Graphics2D g2, int x, int y) {
-        // ── Sombra de la ventana ──────────────────────────────────────────
-        g2.setColor(new Color(0, 0, 0, 80));
-        g2.fillRect(x + 4, y + 4, DIALOG_W, DIALOG_H);
-
-        // ── Borde exterior de la ventana ──────────────────────────────────
-        g2.setColor(XP_WINDOW_BORDER);
-        g2.fillRoundRect(x, y, DIALOG_W, DIALOG_H, 8, 8);
-
-        // ── Barra de título (gradiente azul XP) ──────────────────────────
-        GradientPaint titleGrad = new GradientPaint(
-                x, y, XP_TITLE_BAR_TOP,
-                x, y + TITLE_BAR_H, XP_TITLE_BAR_BOTTOM
-        );
-        g2.setPaint(titleGrad);
-        g2.fillRoundRect(x + 2, y + 2, DIALOG_W - 4, TITLE_BAR_H, 6, 6);
-
-        // Título
-        g2.setColor(XP_TITLE_TEXT);
-        g2.setFont(new Font("Tahoma", Font.BOLD, 13));
-        g2.drawString("TowerDefense_Setup.exe", x + 10, y + 19);
-
-        // Botón [X] de cerrar
-        int closeX = x + DIALOG_W - 26;
-        int closeY = y + 5;
-        int closeSize = 18;
-        closeRect = new Rectangle(closeX, closeY, closeSize, closeSize);
-
-        g2.setColor(closeHovered ? XP_CLOSE_BTN_HOVER : XP_CLOSE_BTN_BG);
-        g2.fillRect(closeX, closeY, closeSize, closeSize);
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Tahoma", Font.BOLD, 12));
-        g2.drawString("✕", closeX + 3, closeY + 14);
-
-        // ── Cuerpo de la ventana ──────────────────────────────────────────
-        g2.setColor(XP_WINDOW_BG);
-        g2.fillRect(x + 2, y + TITLE_BAR_H + 2, DIALOG_W - 4, DIALOG_H - TITLE_BAR_H - 4);
-
-        // ── Texto descriptivo ─────────────────────────────────────────────
-        g2.setColor(XP_BUTTON_TEXT);
-        g2.setFont(new Font("Tahoma", Font.PLAIN, 14));
-        String label = "Seleccione una tarea de instalación:";
-        FontMetrics fm = g2.getFontMetrics();
-        int labelX = x + (DIALOG_W - fm.stringWidth(label)) / 2;
-        g2.drawString(label, labelX, y + TITLE_BAR_H + 40);
-
-        // ── Línea separadora ──────────────────────────────────────────────
-        g2.setColor(new Color(160, 160, 160));
-        g2.drawLine(x + 20, y + TITLE_BAR_H + 55, x + DIALOG_W - 20, y + TITLE_BAR_H + 55);
-
-        // ── Botones ──────────────────────────────────────────────────────
-        int btnX = x + (DIALOG_W - BTN_W) / 2;
-        for (int i = 0; i < 3; i++) {
-            int btnY = y + BTN_START_Y + i * (BTN_H + BTN_GAP);
-            buttonRects[i] = new Rectangle(btnX, btnY, BTN_W, BTN_H);
-            paintButton(g2, btnX, btnY, buttonLabels[i], i == hoveredButton);
+    private void paintIntroAnimation(Graphics2D g2, int w, int h, long elapsed) {
+        int frameIndex = (int) (elapsed / 2200);
+        if (frameIndex > 4) frameIndex = 4;
+        long timeInFrame = elapsed % 2200;
+        
+        BufferedImage img = animFrames[frameIndex];
+        if (img != null) {
+            g2.drawImage(img, 0, 0, w, h, null);
+        } else {
+            g2.setColor(Color.BLACK);
+            g2.fillRect(0, 0, w, h);
+            g2.setColor(Color.WHITE);
+            g2.drawString("Animación " + frameIndex, w/2, h/2);
         }
+        
+        // Destello (flash) al principio de cada frame
+        if (timeInFrame < 150) {
+            float alpha = 1.0f - (timeInFrame / 150f);
+            g2.setColor(new Color(1f, 1f, 1f, alpha));
+            g2.fillRect(0, 0, w, h);
+        }
+        // Fundido a negro al final de cada frame
+        else if (timeInFrame > 1900) {
+            float alpha = (timeInFrame - 1900f) / 300f;
+            if (alpha > 1f) alpha = 1f;
+            g2.setColor(new Color(0f, 0f, 0f, alpha));
+            g2.fillRect(0, 0, w, h);
+        }
+    }
+
+    private void paintMenuButton(Graphics2D g2, int x, int y, int w, int h, String label, boolean hovered) {
+        // En lugar de botones estilo XP, hacemos botones sutiles que peguen con el diseño épico
+        // Fondo semi-transparente cuando hay hover
+        if (hovered) {
+            g2.setColor(new Color(40, 160, 255, 60)); // Cyan suave
+            g2.fillRoundRect(x, y, w, h, 8, 8);
+            g2.setColor(new Color(40, 160, 255));
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRoundRect(x, y, w, h, 8, 8);
+            g2.setStroke(new BasicStroke(1f));
+        }
+
+        // Texto del botón
+        g2.setColor(hovered ? new Color(150, 220, 255) : Color.WHITE);
+        g2.setFont(new Font("Tahoma", Font.BOLD, 18));
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = x + (w - fm.stringWidth(label)) / 2;
+        int textY = y + (h + fm.getAscent() - fm.getDescent()) / 2;
+        g2.drawString(label, textX, textY);
     }
 
     private void paintButton(Graphics2D g2, int x, int y, String label, boolean hovered) {
@@ -234,22 +327,47 @@ public class MainMenuPanel extends JPanel implements MouseListener, MouseMotionL
 
     @Override
     public void mouseClicked(MouseEvent e) {
+        if (isPlayingIntro) {
+            skipIntro();
+            return;
+        }
+
         if (closeHovered) {
             if (onSalir != null) onSalir.run();
             return;
         }
 
         switch (hoveredButton) {
-            case 0 -> { if (onJugar != null) onJugar.run(); }
+            case 0 -> { stopMusic(); if (onJugar != null) onJugar.run(); }
             case 1 -> { if (onOpciones != null) onOpciones.run(); }
             case 2 -> { if (onSalir != null) onSalir.run(); }
         }
     }
 
-    // ─── Unused mouse events ─────────────────────────────────────────────
+    private void skipIntro() {
+        if (isPlayingIntro) {
+            isPlayingIntro = false;
+            if (bgMusic != null) {
+                bgMusic.setMicrosecondPosition(11000000); // Salta al drop
+            }
+            if (renderTimer != null) renderTimer.stop();
+            repaint();
+        }
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_ESCAPE || e.getKeyCode() == KeyEvent.VK_SPACE || e.getKeyCode() == KeyEvent.VK_ENTER) {
+            skipIntro();
+        }
+    }
+
+    // ─── Unused events ─────────────────────────────────────────────
     @Override public void mousePressed(MouseEvent e) {}
     @Override public void mouseReleased(MouseEvent e) {}
     @Override public void mouseEntered(MouseEvent e) {}
     @Override public void mouseExited(MouseEvent e) { hoveredButton = -1; closeHovered = false; repaint(); }
     @Override public void mouseDragged(MouseEvent e) {}
+    @Override public void keyTyped(KeyEvent e) {}
+    @Override public void keyReleased(KeyEvent e) {}
 }

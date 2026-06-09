@@ -26,9 +26,10 @@ public class TowerDefenseSnapshot implements FrameSnapshot {
     private final Juego juego;
     private final int lastClickedX;
     private final int lastClickedY;
+    private final boolean tutorialActive;
 
     public TowerDefenseSnapshot(SessionState state, List<? extends Drawable> drawables, Menu menu,
-                                GameStatus status, Juego juego, int lastClickedX, int lastClickedY) {
+                                GameStatus status, Juego juego, int lastClickedX, int lastClickedY, boolean tutorialActive) {
         this.state = state;
         this.drawables = drawables;
         this.menu = menu;
@@ -36,6 +37,7 @@ public class TowerDefenseSnapshot implements FrameSnapshot {
         this.juego = juego;
         this.lastClickedX = lastClickedX;
         this.lastClickedY = lastClickedY;
+        this.tutorialActive = tutorialActive;
     }
 
     @Override
@@ -45,12 +47,12 @@ public class TowerDefenseSnapshot implements FrameSnapshot {
 
     @Override
     public Float getWorldWidth() {
-        return 20f;
+        return com.miJuego.model.CameraContext.getWorldW();
     }
 
     @Override
     public Float getWorldHeight() {
-        return 15f;
+        return com.miJuego.model.CameraContext.getWorldH();
     }
 
     @Override
@@ -79,5 +81,9 @@ public class TowerDefenseSnapshot implements FrameSnapshot {
 
     public int getLastClickedY() {
         return lastClickedY;
+    }
+
+    public boolean isTutorialActive() {
+        return tutorialActive;
     }
 }
