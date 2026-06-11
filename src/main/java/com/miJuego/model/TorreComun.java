@@ -37,4 +37,12 @@ public class TorreComun extends Torre implements DañoDeTorre {
     public Optional<String> getImagePath() {
         return Optional.of(getTowerSprite());
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        Enemigo target = selectFirstEnemy(enemigosEnRango);
+        this.resetCooldown();
+        return java.util.List.of(new Bala(idGenerator.get(), this, target, 15.0));
+    }
 }

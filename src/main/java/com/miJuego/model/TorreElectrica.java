@@ -81,4 +81,13 @@ public class TorreElectrica extends Torre implements DañoDeTorre {
     public java.util.Optional<String> getImagePath() {
         return java.util.Optional.of(getTowerSprite());
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        Enemigo target = selectFirstEnemy(enemigosEnRango);
+        this.setObjetivo(target);
+        this.resetCooldown();
+        return java.util.List.of(new Bala(idGenerator.get(), this, target, 10.0));
+    }
 }

@@ -16,8 +16,10 @@ public class Nivel {
     private List<float[]> waypoints;
     private List<WaypointNode> spawnNodes;
     
-    // Cola de enemigos por aparecer (oleada)
-    private Queue<Enemigo> colaSpawn;
+    // Cola de oleadas (generics)
+    private List<Oleada<? extends Enemigo>> oleadas;
+    private Oleada<? extends Enemigo> oleadaActualObj;
+    
     private float spawnTimer = 0f;
     private float spawnInterval = 1.8f; // Segundos entre spawn de enemigos
     private int totalEnemigosOleada = 0;
@@ -35,7 +37,7 @@ public class Nivel {
     public Nivel(int numeroNivel) {
         this.numeroNivel = numeroNivel;
         this.enemigosRestantes = new ArrayList<>();
-        this.colaSpawn = new LinkedList<>();
+        this.oleadas = new ArrayList<>();
         this.waypoints = new ArrayList<>();
         this.spawnNodes = new ArrayList<>();
         configurarNivel();
@@ -50,7 +52,8 @@ public class Nivel {
     private void configurarNivel() {
         waypoints.clear();
         spawnNodes.clear();
-        colaSpawn.clear();
+        oleadas.clear();
+        oleadaActualObj = null;
         enemigosRestantes.clear();
         spawnTimer = 0f;
         enemigosSpawnados = 0;
@@ -84,6 +87,7 @@ public class Nivel {
 
             // Wave: 15 Pop-Ups con variantes
             spawnInterval = 2.0f;
+            Oleada<PopUp> oleada1 = new Oleada<>(1);
             for (int i = 0; i < 15; i++) {
                 PopUp.Variante var;
                 if (i < 3) var = PopUp.Variante.ERROR;
@@ -91,8 +95,10 @@ public class Nivel {
                 else var = PopUp.Variante.DESCARGA;
                 
                 PopUp p = new PopUp("popup-" + i, var);
-                colaSpawn.add(p);
+                oleada1.addEnemigo(p);
             }
+            oleadas.add(oleada1);
+            oleadaActualObj = oleada1;
         } else if (numeroNivel == 99) {
             // Nivel 99 Simple (Test)
             buildPolygon = null;
@@ -111,7 +117,24 @@ public class Nivel {
             }
             spawnNodes.add(first);
             
-            generarEnemigosOleadaAleatoria();
+            maximaOleadas = 2; // Test nivel con 2 oleadas
+            // Oleada 1: Cinemática (vacía pero con flag)
+            Oleada<Enemigo> oleadaCinematica = new Oleada<>(1);
+            oleadaCinematica.setCinematicWave(true);
+            oleadas.add(oleadaCinematica);
+            
+            // Oleada 2: Boss Peedy + Duendes
+            Oleada<Enemigo> oleadaBoss = new Oleada<>(2);
+            oleadaBoss.setBossWave(true);
+            BossPeedy peedy = new BossPeedy("lvl99-bosspeedy");
+            oleadaBoss.addEnemigo(peedy);
+            // Agregamos algunos enemigos normales para molestar
+            for (int i=0; i<10; i++) {
+                oleadaBoss.addEnemigo(new Duende("lvl99-duende-" + i));
+            }
+            oleadas.add(oleadaBoss);
+            
+            oleadaActualObj = oleadas.get(0);
         } else {
             // Niveles > 1 (Mundo aleatorio)
             buildPolygon = null;
@@ -202,10 +225,11 @@ public class Nivel {
             generarEnemigosOleadaAleatoria();
         }
 
-        totalEnemigosOleada = colaSpawn.size();
+        totalEnemigosOleada = oleadaActualObj != null ? oleadaActualObj.size() : 0;
     }
 
     private void generarEnemigosOleadaAleatoria() {
+        Oleada<Enemigo> nuevaOleada = new Oleada<>(oleadaActual);
         // OLEADA ALEATORIA (Dificultad progresiva por nivel y por oleada)
         float dificultadGlobal = numeroNivel + (oleadaActual * 0.4f);
         int cantEnemigos = (int) (dificultadGlobal * 8) + random.nextInt(10);
@@ -228,7 +252,11 @@ public class Nivel {
             // Escalado de stats
             e.setVida(e.GetVida() * (1 + (dificultadGlobal * 0.15)));
             
-            colaSpawn.add(e);
+            nuevaOleada.addEnemigo(e);
+        }
+        oleadas.add(nuevaOleada);
+        if (oleadaActualObj == null) {
+            oleadaActualObj = nuevaOleada;
         }
     }
 
@@ -243,8 +271,13 @@ public class Nivel {
     public void prepararSiguienteOleada() {
         if (oleadaActual < maximaOleadas) {
             oleadaActual++;
-            generarEnemigosOleadaAleatoria();
-            totalEnemigosOleada = colaSpawn.size();
+            if (numeroNivel != 99 && numeroNivel != 1) { // 99 y 1 ya tienen sus oleadas precargadas
+                generarEnemigosOleadaAleatoria();
+                oleadaActualObj = oleadas.get(oleadas.size() - 1);
+            } else {
+                oleadaActualObj = oleadas.get(oleadaActual - 1);
+            }
+            totalEnemigosOleada = oleadaActualObj.size();
             enemigosSpawnados = 0;
             this.spawnPaused = true;
         }
@@ -265,7 +298,7 @@ public class Nivel {
     }
 
     public boolean verificarFinDeOleada() {
-        return colaSpawn.isEmpty() && enemigosRestantes.isEmpty();
+        return (oleadaActualObj == null || oleadaActualObj.isEmpty()) && enemigosRestantes.isEmpty();
     }
 
     public boolean verificarFinDeNivel() {
@@ -276,13 +309,13 @@ public class Nivel {
     }
 
     public void updateSpawn(float deltaSeconds) {
-        if (colaSpawn.isEmpty() || spawnPaused) {
+        if (oleadaActualObj == null || oleadaActualObj.isEmpty() || spawnPaused) {
             return;
         }
         spawnTimer += deltaSeconds;
         if (spawnTimer >= spawnInterval) {
             spawnTimer = 0f;
-            Enemigo spawnado = colaSpawn.poll();
+            Enemigo spawnado = oleadaActualObj.pollEnemigo();
             if (spawnado != null) {
                 // Elegir un spawn point
                 WaypointNode spawn;
@@ -335,7 +368,7 @@ public class Nivel {
     }
 
     public int getEnemigosRestantesCount() {
-        return colaSpawn.size() + enemigosRestantes.size();
+        return (oleadaActualObj != null ? oleadaActualObj.size() : 0) + enemigosRestantes.size();
     }
 
     public boolean isValidPlacementArea(int ix, int iy) {
@@ -343,5 +376,13 @@ public class Nivel {
             return buildPolygon.contains(ix + 0.5f, iy + 0.5f);
         }
         return ix >= 0 && ix < com.miJuego.model.CameraContext.getWorldW() && iy >= 0 && iy < com.miJuego.model.CameraContext.getWorldH();
+    }
+    
+    public Oleada<? extends Enemigo> getOleadaActualObj() {
+        return oleadaActualObj;
+    }
+
+    public List<WaypointNode> getSpawnNodes() {
+        return spawnNodes;
     }
 }

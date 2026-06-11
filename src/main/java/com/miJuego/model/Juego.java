@@ -49,6 +49,7 @@ public class Juego {
 
     public void restart(int levelNum) {
         int initialCoins = (levelNum >= 2) ? 400 : 150;
+        if (levelNum == 99) initialCoins = 1000;
         this.jugador = new Jugador(0, 20, initialCoins); // 20 vidas, oro inicial según nivel
         this.nivelActual = new Nivel(levelNum);
         this.torres.clear();
@@ -92,6 +93,67 @@ public class Juego {
             
             // Actualizar efectos de estado (fuego, hielo, parálisis)
             enemigo.actualizarEfectosYDaño(deltaSeconds);
+
+            // Si es Boss Peedy, procesar habilidades y movimiento libre (no sigue waypoints)
+            if (enemigo instanceof BossPeedy peedy) {
+                peedy.updateHabilidades(deltaSeconds, torres, enemigos, efectosVisuales);
+                
+                if (peedy.getEstadoBoss() == BossPeedy.BossState.STUNNING ||
+                    peedy.getEstadoBoss() == BossPeedy.BossState.SPINNING ||
+                    peedy.getEstadoBoss() == BossPeedy.BossState.LANDING ||
+                    peedy.getEstadoBoss() == BossPeedy.BossState.RECOMPOSING) {
+                    // Se queda totalmente quieto durante estas animaciones cinemáticas
+                    continue;
+                }
+                
+                // Determinar coordenadas de destino (hacia una torre si está atacando, o destino libre)
+                float tx = peedy.getDestX();
+                float ty = peedy.getDestY();
+                
+                if (peedy.getEstadoBoss() == BossPeedy.BossState.FLYING && peedy.getTargetTower() != null) {
+                    Torre t = peedy.getTargetTower();
+                    if (torres.contains(t)) {
+                        tx = t.getX() + 0.5f;
+                        ty = t.getY() + 0.5f;
+                    } else {
+                        // La torre objetivo ya no existe
+                        peedy.terminarVuelo();
+                        peedy.elegirDestinoAleatorio();
+                        tx = peedy.getDestX();
+                        ty = peedy.getDestY();
+                    }
+                }
+                
+                float dx = tx - peedy.getX();
+                float dy = ty - peedy.getY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                double speed = (peedy.getEstadoBoss() == BossPeedy.BossState.FLYING) ? 8.0 : peedy.getVelocidadActual();
+                
+                if (dist <= speed * deltaSeconds) {
+                    peedy.setPosicion(tx, ty);
+                    if (peedy.getEstadoBoss() == BossPeedy.BossState.FLYING) {
+                        if (peedy.getTargetTower() != null) {
+                            // Iniciamos la secuencia cinemática (360 -> landing -> recompose)
+                            peedy.setEstadoBoss(BossPeedy.BossState.SPINNING);
+                            peedy.resetAnimTimer();
+                        } else {
+                            // Era un vuelo a una coordenada libre, vuelve a caminar
+                            peedy.terminarVuelo();
+                            peedy.elegirDestinoAleatorio();
+                        }
+                    } else {
+                        // Caminando libre, elige otro destino
+                        peedy.elegirDestinoAleatorio();
+                    }
+                } else {
+                    // Avanzar hacia el destino
+                    float newX = peedy.getX() + (float) (dx / dist * speed * deltaSeconds);
+                    float newY = peedy.getY() + (float) (dy / dist * speed * deltaSeconds);
+                    peedy.setPosicion(newX, newY);
+                }
+                
+                continue; // Omite el movimiento terrestre de waypoints
+            }
 
             // Verificar si murió por daño de fuego/efectos en este tick
             if (enemigo.isDead()) {
@@ -199,11 +261,19 @@ public class Juego {
             torre.updateCooldown(deltaSeconds);
             torre.findTarget(enemigos);
             if (torre.canShoot()) {
-                if (torre instanceof TorreAvast avast && avast.isManualTargetingMode()) {
-                    balas.add(new Bala("bala-" + (++idCounter), torre, null, 25.0 * avast.getNivelMejora()));
-                    torre.resetCooldown();
-                } else {
-                    shootTower(torre, enemigos);
+                // Encontrar enemigos en rango
+                List<Enemigo> targetsInRange = new ArrayList<>();
+                double rangeSq = torre.getRango() * torre.getRango();
+                for (Enemigo e : enemigos) {
+                    double dx = e.getX() - torre.getX();
+                    double dy = e.getY() - torre.getY();
+                    if (dx * dx + dy * dy <= rangeSq) {
+                        targetsInRange.add(e);
+                    }
+                }
+                List<Bala> generatedBullets = ((Atacante) torre).atacar(targetsInRange, () -> "bala-" + (++idCounter));
+                if (generatedBullets != null && !generatedBullets.isEmpty()) {
+                    balas.addAll(generatedBullets);
                 }
             }
         }
@@ -240,114 +310,7 @@ public class Juego {
         }
     }
 
-    private void shootTower(Torre torre, List<Enemigo> enemigos) {
-        if (enemigos.isEmpty()) {
-            return;
-        }
 
-        // Encontrar enemigos en rango
-        List<Enemigo> targetsInRange = new ArrayList<>();
-        double rangeSq = torre.getRango() * torre.getRango();
-        for (Enemigo e : enemigos) {
-            double dx = e.getX() - torre.getX();
-            double dy = e.getY() - torre.getY();
-            if (dx * dx + dy * dy <= rangeSq) {
-                targetsInRange.add(e);
-            }
-        }
-
-        if (targetsInRange.isEmpty()) {
-            return;
-        }
-
-        // Heurística de selección de objetivos
-        if (torre instanceof TorreDeArea) {
-            TorreDeArea ta = (TorreDeArea) torre;
-            // Daña a todos los enemigos en rango hasta su límite
-            int count = 0;
-            int max = ta.getCantidadEnemigosDañadoMax();
-            for (Enemigo e : targetsInRange) {
-                if (count >= max) break;
-                // Dispara
-                balas.add(new Bala("bala-" + (++idCounter), torre, e, 10.0));
-                count++;
-            }
-            ta.setCantidadEnemigosDañado(count);
-            torre.resetCooldown();
-        } 
-        else if (torre instanceof TorreFuerte) {
-            // Prioriza al que tiene más vida
-            Enemigo strongTarget = targetsInRange.get(0);
-            for (Enemigo e : targetsInRange) {
-                if (e.GetVida() > strongTarget.GetVida()) {
-                    strongTarget = e;
-                }
-            }
-            ((TorreFuerte) torre).setObjetivo(strongTarget);
-            balas.add(new Bala("bala-" + (++idCounter), torre, strongTarget, 80.0));
-            torre.resetCooldown();
-        } 
-        else if (torre instanceof TorreComun) {
-            // Prioriza el que está más avanzado en el camino (First)
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
-            torre.resetCooldown();
-        } 
-        else if (torre instanceof TorreFirefox) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            // TorreFirefox ataca al primero y aplica mucho daño
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
-            torre.resetCooldown();
-        } 
-        else if (torre instanceof TorreInternetExplorer) {
-            Enemigo target = null;
-            // Primero buscamos un enemigo que no esté ralentizado
-            for (Enemigo e : targetsInRange) {
-                if (!e.tieneRalentizar()) {
-                    if (target == null || e.getNodosVisitados() > target.getNodosVisitados() || 
-                        (e.getNodosVisitados() == target.getNodosVisitados() && e.getTargetNode() != null && target.getTargetNode() != null &&
-                         Math.hypot(e.getTargetNode().x - e.getX(), e.getTargetNode().y - e.getY()) < 
-                         Math.hypot(target.getTargetNode().x - target.getX(), target.getTargetNode().y - target.getY()))) {
-                        target = e;
-                    }
-                }
-            }
-            // Si todos están ralentizados, atacamos al primero
-            if (target == null) {
-                target = selectFirstEnemy(targetsInRange);
-            }
-            ((TorreInternetExplorer) torre).setObjetivo(target);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 2.0)); // Poco daño
-            torre.resetCooldown();
-        }
-        else if (torre instanceof TorreDeHielo) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            ((TorreDeHielo) torre).setObjetivo(target);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 0.0));
-            torre.resetCooldown();
-        } 
-        else if (torre instanceof TorreElectrica) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            ((TorreElectrica) torre).setObjetivo(target);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 10.0));
-            torre.resetCooldown();
-        }
-        else if (torre instanceof TorreAvast) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 25.0));
-            torre.resetCooldown();
-        }
-        else if (torre instanceof TorreMcAfee) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 20.0));
-            torre.resetCooldown();
-        }
-        else if (torre instanceof TorreMessenger) {
-            Enemigo target = selectFirstEnemy(targetsInRange);
-            balas.add(new Bala("bala-" + (++idCounter), torre, target, 15.0));
-            torre.resetCooldown();
-        }
-    }
 
     private Enemigo selectFirstEnemy(List<Enemigo> list) {
         Enemigo first = list.get(0);
@@ -368,6 +331,32 @@ public class Juego {
         }
         return first;
     }
+
+    public Enemigo selectFirstEnemyRecursivo(List<Enemigo> lista, int indice) {
+        if (lista == null || lista.isEmpty()) return null;
+        if (indice == lista.size() - 1) {
+            return lista.get(indice);
+        }
+        
+        Enemigo mejorDelResto = selectFirstEnemyRecursivo(lista, indice + 1);
+        Enemigo actual = lista.get(indice);
+        
+        if (actual.getNodosVisitados() > mejorDelResto.getNodosVisitados()) {
+            return actual;
+        } else if (actual.getNodosVisitados() == mejorDelResto.getNodosVisitados()) {
+            WaypointNode wpA = actual.getTargetNode();
+            WaypointNode wpR = mejorDelResto.getTargetNode();
+            if (wpA != null && wpR != null) {
+                double distA = Math.hypot(wpA.x - actual.getX(), wpA.y - actual.getY());
+                double distR = Math.hypot(wpR.x - mejorDelResto.getX(), wpR.y - mejorDelResto.getY());
+                if (distA < distR) {
+                    return actual;
+                }
+            }
+        }
+        return mejorDelResto;
+    }
+
 
     // Colocar torre
     public boolean placeTower(int ix, int iy) {

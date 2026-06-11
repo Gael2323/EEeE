@@ -102,4 +102,16 @@ public class TorreAvast extends Torre {
         this.rango += 0.5;
         this.tiempoRecarga = Math.max(1500, this.tiempoRecarga - 200);
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (manualTargetingMode) {
+            this.resetCooldown();
+            return java.util.List.of(new Bala(idGenerator.get(), this, null, 25.0 * getNivelMejora()));
+        }
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        Enemigo target = selectFirstEnemy(enemigosEnRango);
+        this.resetCooldown();
+        return java.util.List.of(new Bala(idGenerator.get(), this, target, 25.0));
+    }
 }

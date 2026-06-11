@@ -30,4 +30,28 @@ public class TorreInternetExplorer extends TorreDeHielo {
     public String getSpritePrefix() {
         return "torreie";
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        Enemigo target = null;
+        // Primero buscamos un enemigo que no esté ralentizado
+        for (Enemigo e : enemigosEnRango) {
+            if (!e.tieneRalentizar()) {
+                if (target == null || e.getNodosVisitados() > target.getNodosVisitados() || 
+                    (e.getNodosVisitados() == target.getNodosVisitados() && e.getTargetNode() != null && target.getTargetNode() != null &&
+                     Math.hypot(e.getTargetNode().x - e.getX(), e.getTargetNode().y - e.getY()) < 
+                     Math.hypot(target.getTargetNode().x - target.getX(), target.getTargetNode().y - target.getY()))) {
+                    target = e;
+                }
+            }
+        }
+        // Si todos están ralentizados, atacamos al primero
+        if (target == null) {
+            target = selectFirstEnemy(enemigosEnRango);
+        }
+        this.setObjetivo(target);
+        this.resetCooldown();
+        return java.util.List.of(new Bala(idGenerator.get(), this, target, 2.0));
+    }
 }

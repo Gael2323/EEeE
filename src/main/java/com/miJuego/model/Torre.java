@@ -8,7 +8,7 @@ import java.awt.Color;
 import java.net.URL;
 import java.util.Optional;
 
-public abstract class Torre implements Drawable {
+public abstract class Torre implements Drawable, Atacante {
     protected String id;
     protected float x;
     protected float y;
@@ -18,6 +18,7 @@ public abstract class Torre implements Drawable {
     
     // Atributos de juego adicionales
     protected float cooldownTimer = 0f; // Tiempo restante para volver a disparar (en segundos)
+    protected float stunTimer = 0f; // Tiempo restante de aturdimiento
     protected double rango = 3.5; // Rango por defecto
     protected int nivelMejora = 1; // Nivel de la torre (empieza en 1)
     
@@ -112,6 +113,26 @@ public abstract class Torre implements Drawable {
 
     public abstract void upgrade();
 
+    protected Enemigo selectFirstEnemy(java.util.List<Enemigo> list) {
+        Enemigo first = list.get(0);
+        for (Enemigo e : list) {
+            if (e.getNodosVisitados() > first.getNodosVisitados()) {
+                first = e;
+            } else if (e.getNodosVisitados() == first.getNodosVisitados()) {
+                WaypointNode wpE = e.getTargetNode();
+                WaypointNode wpF = first.getTargetNode();
+                if (wpE != null && wpF != null) {
+                    double distE = Math.hypot(wpE.x - e.getX(), wpE.y - e.getY());
+                    double distF = Math.hypot(wpF.x - first.getX(), wpF.y - first.getY());
+                    if (distE < distF) {
+                        first = e;
+                    }
+                }
+            }
+        }
+        return first;
+    }
+
     // Getters y Setters de juego
     public String getTowertype() {
         return towertype;
@@ -145,14 +166,21 @@ public abstract class Torre implements Drawable {
         this.cooldownTimer = (float) (tiempoRecarga / 1000.0);
     }
 
+    public void stun(float seconds) {
+        this.stunTimer = seconds;
+    }
+
     public void updateCooldown(float deltaSeconds) {
         if (cooldownTimer > 0) {
             cooldownTimer -= deltaSeconds;
         }
+        if (stunTimer > 0) {
+            stunTimer -= deltaSeconds;
+        }
     }
 
     public boolean canShoot() {
-        return cooldownTimer <= 0;
+        return cooldownTimer <= 0 && stunTimer <= 0;
     }
 
     // Implementación de Drawable

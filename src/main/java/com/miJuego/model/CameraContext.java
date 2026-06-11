@@ -30,6 +30,10 @@ public final class CameraContext {
     private static volatile float cameraX = 0f;
     private static volatile float cameraY = 0f;
 
+    private static volatile float shakeTimer = 0f;
+    private static volatile float totalShakeDuration = 0f;
+    private static volatile float shakeIntensity = 0f;
+
     /** Valores objetivo para interpolación suave */
     private static volatile float targetCameraX = 0f;
     private static volatile float targetCameraY = 0f;
@@ -51,8 +55,27 @@ public final class CameraContext {
         {128f, 96f}   // Vista alejada máxima (El mapa ocupará la mitad de la pantalla)
     };
 
-    public static float getCameraX() { return cameraX; }
-    public static float getCameraY() { return cameraY; }
+    public static float getCameraX() {
+        float offset = 0f;
+        if (shakeTimer > 0f && totalShakeDuration > 0f) {
+            float progress = shakeTimer / totalShakeDuration;
+            offset = (float) ((Math.random() - 0.5f) * 2f * shakeIntensity * progress);
+        }
+        return cameraX + offset;
+    }
+    public static float getCameraY() {
+        float offset = 0f;
+        if (shakeTimer > 0f && totalShakeDuration > 0f) {
+            float progress = shakeTimer / totalShakeDuration;
+            offset = (float) ((Math.random() - 0.5f) * 2f * shakeIntensity * progress);
+        }
+        return cameraY + offset;
+    }
+    public static void triggerShake(float duration, float intensity) {
+        shakeTimer = duration;
+        totalShakeDuration = duration;
+        shakeIntensity = intensity;
+    }
     public static float getTargetCameraX() { return targetCameraX; }
     public static float getTargetCameraY() { return targetCameraY; }
     public static float getTargetViewportW() { return targetViewportW; }
@@ -144,6 +167,12 @@ public final class CameraContext {
     }
 
     public static void tick(float dt) {
+        if (shakeTimer > 0f) {
+            shakeTimer -= dt;
+            if (shakeTimer < 0f) {
+                shakeTimer = 0f;
+            }
+        }
         float lerpSpeed = 10f; // Velocidad de interpolación
         cameraX = cameraX + (targetCameraX - cameraX) * lerpSpeed * dt;
         cameraY = cameraY + (targetCameraY - cameraY) * lerpSpeed * dt;

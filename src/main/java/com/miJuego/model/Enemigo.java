@@ -216,6 +216,10 @@ public abstract class Enemigo implements Drawable {
         return nodosVisitados;
     }
 
+    public void setNodosVisitados(int nodosVisitados) {
+        this.nodosVisitados = nodosVisitados;
+    }
+
     public void avanzarNodo() {
         this.nodosVisitados++;
     }

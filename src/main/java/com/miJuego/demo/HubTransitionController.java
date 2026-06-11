@@ -360,6 +360,11 @@ public class HubTransitionController {
             MerchantDialog dialog = new MerchantDialog(ownerFrame);
             dialog.setVisible(true);
         });
+
+        hubPanel.setOnTestAction(() -> {
+            ownerFrame.setVisible(false);
+            TestLevelLauncher.launch();
+        });
     }
 
     public static void startPostLevelTransition(JFrame frame, int completedLevel) {

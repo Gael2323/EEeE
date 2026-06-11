@@ -615,7 +615,7 @@ public class DesktopHubPanel extends JPanel {
             case RECYCLE_BIN -> icon.locked = !ProgresoJuego.recycleBinUnlocked;
             case SOLITAIRE   -> icon.locked = !ProgresoJuego.solitaireUnlocked;
             case EXPLORER    -> icon.locked = !ProgresoJuego.explorerUnlocked;
-            case TERMINAL    -> icon.locked = !ProgresoJuego.terminalUnlocked;
+            case TERMINAL    -> icon.locked = !icon.name.equals("Nivel Prueba") && !ProgresoJuego.terminalUnlocked;
             case GALLERY     -> icon.locked = !ProgresoJuego.galleryUnlocked;
             case WIZARD_CHRONICLE -> icon.locked = !ProgresoJuego.wizardUnlocked;
             case MY_COMPUTER -> icon.locked = false;

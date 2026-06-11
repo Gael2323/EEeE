@@ -45,4 +45,18 @@ public class TorreFuerte extends Torre implements DañoDeTorre {
     public java.util.Optional<String> getImagePath() {
         return java.util.Optional.of(getTowerSprite());
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        Enemigo strongTarget = enemigosEnRango.get(0);
+        for (Enemigo e : enemigosEnRango) {
+            if (e.GetVida() > strongTarget.GetVida()) {
+                strongTarget = e;
+            }
+        }
+        this.setObjetivo(strongTarget);
+        this.resetCooldown();
+        return java.util.List.of(new Bala(idGenerator.get(), this, strongTarget, 80.0));
+    }
 }

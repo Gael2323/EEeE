@@ -140,7 +140,9 @@ final class GamePanel extends JPanel {
 
         boolean isEnemy = drawable.getClass().getSimpleName().contains("Enemigo") ||
                           drawable.getClass().getSimpleName().contains("PopUp") ||
-                          drawable.getClass().getSimpleName().contains("Duende");
+                          drawable.getClass().getSimpleName().contains("Duende") ||
+                          drawable.getClass().getSimpleName().contains("Peedy") ||
+                          drawable instanceof com.miJuego.model.Enemigo;
 
         float drawX = drawable.getX();
         float drawY = drawable.getY();

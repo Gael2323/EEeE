@@ -60,4 +60,19 @@ public class TorreDeArea extends Torre implements DañoDeTorre {
     public java.util.Optional<String> getImagePath() {
         return java.util.Optional.of(getTowerSprite());
     }
+
+    @Override
+    public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
+        if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
+        java.util.List<Bala> balas = new java.util.ArrayList<>();
+        int count = 0;
+        for (Enemigo e : enemigosEnRango) {
+            if (count >= cantidadEnemigosDañadoMax) break;
+            balas.add(new Bala(idGenerator.get(), this, e, 10.0));
+            count++;
+        }
+        this.cantidadEnemigosDañado = count;
+        this.resetCooldown();
+        return balas;
+    }
 }

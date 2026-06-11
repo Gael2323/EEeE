@@ -2,7 +2,7 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public class TorreDeFuego extends Torre implements DañoDeTorre {
+public abstract class TorreDeFuego extends Torre implements DañoDeTorre {
     private Enemigo objetivo;
     private double dañoPorQuemadura;
     private double areaAGolpear; // Splash/rango del efecto de fuego en área
