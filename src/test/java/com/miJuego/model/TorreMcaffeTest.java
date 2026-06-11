@@ -34,7 +34,7 @@ public class TorreMcaffeTest {
 
         // Hacemos correr la actualización del juego paso a paso (50ms por update)
         for (int i = 1; i <= 25; i++) {
-            juego.update(0.05f); // 50ms por paso (total 1.25 segundos)
+            juego.update(0.2f); // 50ms por paso (total 1.25 segundos)
 
             // Si hay alguna bala activa, mostramos su progreso hacia el enemigo
             if (!juego.getBalas().isEmpty()) {

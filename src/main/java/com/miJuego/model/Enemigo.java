@@ -67,7 +67,7 @@ public abstract class Enemigo implements Drawable {
 
     // Getters y Setters de la especificación UML (con los tipos que define el diagrama)
     public void setVida(double vida) {
-        this.vida = vida;
+        this.vida = Math.max(0.0, vida);
     }
 
     public double GetVida() {
@@ -139,7 +139,7 @@ public abstract class Enemigo implements Drawable {
         if (fuegoTimer > 0) {
             fuegoTimer -= deltaSeconds;
             // Daño constante por segundo
-            vida -= fuegoDps * deltaSeconds;
+            setVida(GetVida() - fuegoDps * deltaSeconds);
         } else {
             fuegoDps = 0.0;
         }
