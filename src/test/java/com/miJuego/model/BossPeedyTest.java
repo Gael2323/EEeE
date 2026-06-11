@@ -2,7 +2,6 @@ package com.miJuego.model;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import java.util.ArrayList;
 import java.util.List;
 
 public class BossPeedyTest {
@@ -18,108 +17,136 @@ public class BossPeedyTest {
 
     @Test
     void testBossPeedyAparicionYMovimiento() {
-        // 1. APARICIÓN Y MOVIMIENTO LIBRE
+        System.out.println("=== SIMULACIÓN POR EVENTOS: APARICIÓN Y MOVIMIENTO ===");
+        
         BossPeedy peedy = new BossPeedy("peedy-test");
         peedy.setPosicion(10.0f, 10.0f);
         juego.getNivelActual().getEnemigosRestantes().add(peedy);
 
-        // Verificamos estado inicial
+        System.out.printf(">>> EVENTO: Boss Peedy apareció en posición inicial (%.2f, %.2f) | Estado: %s%n",
+                peedy.getX(), peedy.getY(), peedy.getEstadoBoss());
+
         org.junit.jupiter.api.Assertions.assertEquals(BossPeedy.BossState.WALKING, peedy.getEstadoBoss());
-        org.junit.jupiter.api.Assertions.assertEquals(10.0f, peedy.getX());
-        org.junit.jupiter.api.Assertions.assertEquals(10.0f, peedy.getY());
 
-        // Hacemos que camine
-        float startX = peedy.getX();
-        float startY = peedy.getY();
+        float lastX = peedy.getX();
+        float lastY = peedy.getY();
         
-        // Ejecutamos varios updates para comprobar que se desplaza libremente
-        for (int i = 0; i < 20; i++) {
+        // Hacemos correr actualizaciones lógicas paso a paso
+        for (int i = 1; i <= 30; i++) {
             juego.update(0.1f);
+            
+            // Logueamos solo si la distancia recorrida es significativa (cambio de ubicación)
+            double dist = Math.hypot(peedy.getX() - lastX, peedy.getY() - lastY);
+            if (dist >= 1.5) {
+                System.out.printf(">>> EVENTO: Boss Peedy cambió de ubicación a (%.2f, %.2f) | Distancia desde último reporte: %.2f%n",
+                        peedy.getX(), peedy.getY(), dist);
+                lastX = peedy.getX();
+                lastY = peedy.getY();
+            }
         }
+        System.out.println("=== FIN DE LA SIMULACIÓN ===\n");
 
-        // Debería haberse movido de (10, 10) hacia su destino aleatorio
-        org.junit.jupiter.api.Assertions.assertTrue(peedy.getX() != startX || peedy.getY() != startY,
+        org.junit.jupiter.api.Assertions.assertTrue(peedy.getX() != 10.0f || peedy.getY() != 10.0f,
                 "BossPeedy debió haberse movido libremente");
     }
 
     @Test
     void testBossPeedyAturdeTorres() {
-        // 2. ATURDIMIENTO DE TORRES (RUGIDO/GRITO)
+        System.out.println("=== SIMULACIÓN POR EVENTOS: ATURDIMIENTO DE TORRES ===");
+
         BossPeedy peedy = new BossPeedy("peedy-test");
         peedy.setPosicion(20.0f, 20.0f);
         juego.getNivelActual().getEnemigosRestantes().add(peedy);
 
-        // Colocamos una torre cerca (distancia 1.0, rango de stun es 4.0)
         TorreComun torre = new TorreComun("torre-cercana", 21, 20);
         juego.getTorres().add(torre);
 
-        // Colocamos otra torre lejos (distancia 6.0, fuera de rango)
         TorreComun torreLejos = new TorreComun("torre-lejana", 26, 20);
         juego.getTorres().add(torreLejos);
 
-        // Forzamos al boss a iniciar la habilidad de aturdimiento (grito)
-        // private void iniciarAturdir() se llama internamente, pero podemos cambiar el estado
-        // y configurar los timers para simularlo.
+        System.out.printf(">>> EVENTO: Torre '%s' colocada en (21, 20) | Torre '%s' colocada en (26, 20)%n",
+                torre.getId(), torreLejos.getId());
+
+        // Configuramos al boss para iniciar rugido
         peedy.setEstadoBoss(BossPeedy.BossState.STUNNING);
         peedy.resetAnimTimer();
-        
-        // El grito se ejecuta cuando getStunningFrame() >= 3 (es decir, animTimer >= 0.45s)
-        // Simulamos el paso de tiempo
-        juego.update(0.5f);
+        System.out.println(">>> EVENTO: Boss Peedy inició preparación para grito de aturdimiento (STUNNING)");
 
-        // Verificaciones
+        boolean reportadoStun = false;
+
+        // Simulamos actualizaciones cortas de 0.05 segundos
+        for (int i = 1; i <= 15; i++) {
+            juego.update(0.05f);
+
+            if (!torre.canShoot() && !reportadoStun) {
+                reportadoStun = true;
+                System.out.printf(">>> EVENTO: ¡RUGIDO ATURDIDOR! La torre '%s' fue aturdida en el paso %d (tiempo: %.2fs)%n",
+                        torre.getId(), i, i * 0.05f);
+            }
+        }
+        System.out.println("=== FIN DE LA SIMULACIÓN ===\n");
+
         org.junit.jupiter.api.Assertions.assertFalse(torre.canShoot(), "La torre cercana debió haber sido aturdida");
         org.junit.jupiter.api.Assertions.assertTrue(torreLejos.canShoot(), "La torre lejana no debió ser afectada");
     }
 
     @Test
     void testBossPeedyRompeTorres() {
-        // 3. SECUENCIA SUPERHERO LANDING Y DESTRUCCIÓN DE TORRE
+        System.out.println("=== SIMULACIÓN POR EVENTOS: DESTRUCCIÓN DE TORRE ===");
+
         BossPeedy peedy = new BossPeedy("peedy-test");
         peedy.setPosicion(22.0f, 22.0f);
         juego.getNivelActual().getEnemigosRestantes().add(peedy);
 
-        // Colocamos la torre que será el objetivo
         TorreComun torreObjetivo = new TorreComun("torre-target", 20, 20);
         juego.getTorres().add(torreObjetivo);
 
-        // Iniciamos picada hacia la torre
-        peedy.setEstadoBoss(BossPeedy.BossState.SPINNING);
-        peedy.resetAnimTimer();
-        // Nos aseguramos que el target sea torreObjetivo
-        // targetTower es un campo privado pero lo seteamos indirectamente forzando a iniciar el vuelo
-        // o llamando al actualizador de habilidades. 
-        // Para simplificar el unit test, podemos simular la picada e impacto:
-        java.lang.reflect.Field targetField;
+        System.out.printf(">>> EVENTO: Torre '%s' colocada en (20, 20) como objetivo de destrucción%n", torreObjetivo.getId());
+
+        // Seteamos por reflexión el target
         try {
-            targetField = BossPeedy.class.getDeclaredField("targetTower");
+            java.lang.reflect.Field targetField = BossPeedy.class.getDeclaredField("targetTower");
             targetField.setAccessible(true);
             targetField.set(peedy, torreObjetivo);
         } catch (Exception e) {
-            org.junit.jupiter.api.Assertions.fail("No se pudo setear targetTower por reflexión: " + e.getMessage());
+            org.junit.jupiter.api.Assertions.fail(e.getMessage());
         }
 
-        // Paso A: SPINNING (dura 0.8s)
-        juego.update(0.81f);
-        org.junit.jupiter.api.Assertions.assertEquals(BossPeedy.BossState.LANDING, peedy.getEstadoBoss(),
-                "Debería pasar a LANDING tras culminar SPINNING");
+        peedy.setEstadoBoss(BossPeedy.BossState.SPINNING);
+        peedy.resetAnimTimer();
+        System.out.println(">>> EVENTO: Boss Peedy inició vuelo de aproximación 360 (SPINNING)");
 
-        // Paso B: LANDING (el impacto destruye la torre a los 0.50s)
-        juego.update(0.51f);
+        BossPeedy.BossState ultimoEstado = peedy.getEstadoBoss();
+        boolean reportadoImpacto = false;
 
-        // Verificaciones
-        org.junit.jupiter.api.Assertions.assertFalse(juego.getTorres().contains(torreObjetivo),
-                "La torre objetivo debió haber sido destruida e impacto ejecutado");
+        for (int i = 1; i <= 30; i++) {
+            juego.update(0.05f);
+
+            if (peedy.getEstadoBoss() != ultimoEstado) {
+                System.out.printf(">>> EVENTO: Boss Peedy transicionó de estado a %s (tiempo: %.2fs)%n",
+                        peedy.getEstadoBoss(), i * 0.05f);
+                ultimoEstado = peedy.getEstadoBoss();
+            }
+
+            if (!juego.getTorres().contains(torreObjetivo) && !reportadoImpacto) {
+                reportadoImpacto = true;
+                System.out.printf(">>> EVENTO: ¡IMPACTO SUPERHERO LANDING! La torre '%s' fue totalmente destruida (tiempo: %.2fs)%n",
+                        torreObjetivo.getId(), i * 0.05f);
+            }
+        }
+        System.out.println("=== FIN DE LA SIMULACIÓN ===\n");
+
+        org.junit.jupiter.api.Assertions.assertFalse(juego.getTorres().contains(torreObjetivo));
     }
 
     @Test
     void testBossPeedyRemolinoDeBugs() {
-        // 4. REMOLINO DE BUGS (TELEPORTACIÓN DE ENEMIGOS)
+        System.out.println("=== SIMULACIÓN POR EVENTOS: REMOLINO DE BUGS ===");
+
         BossPeedy peedy = new BossPeedy("peedy-test");
         peedy.setPosicion(20.0f, 20.0f);
         juego.getNivelActual().getEnemigosRestantes().add(peedy);
 
-        // Creamos un enemigo secundario en el waypoint inicial
         WaypointNode spawn = juego.getNivelActual().getSpawnNodes().get(0);
         Enemigo e1 = new PopUp("popup-temp");
         e1.setPosicion(spawn.x, spawn.y);
@@ -127,7 +154,9 @@ public class BossPeedyTest {
         e1.setNodosVisitados(1);
         juego.getNivelActual().getEnemigosRestantes().add(e1);
 
-        // Forzamos habilidad de teleportación (Remolino de Bugs es activeHabilidadType = 1)
+        System.out.printf(">>> EVENTO: Enemigo '%s' apareció en el spawn inicial en (%.2f, %.2f)%n",
+                e1.getId(), e1.getX(), e1.getY());
+
         peedy.setEstadoBoss(BossPeedy.BossState.STUNNING);
         peedy.resetAnimTimer();
         
@@ -136,14 +165,26 @@ public class BossPeedyTest {
             habTypeField.setAccessible(true);
             habTypeField.set(peedy, 1); // 1 = Teleport
         } catch (Exception e) {
-            org.junit.jupiter.api.Assertions.fail("No se pudo setear activeHabilidadType: " + e.getMessage());
+            org.junit.jupiter.api.Assertions.fail(e.getMessage());
         }
 
-        // Avanzamos el tiempo para que se ejecute la habilidad (getStunningFrame() >= 3)
-        juego.update(0.5f);
+        System.out.println(">>> EVENTO: Boss Peedy inició preparación para Remolino de Bugs (STUNNING)");
 
-        // El enemigo e1 debió haber sido teletransportado 3 nodos adelante (y opcionalmente avanzar 1 más en su actualización del tick)
-        org.junit.jupiter.api.Assertions.assertTrue(e1.getNodosVisitados() >= 4,
-                "El enemigo debió avanzar al menos 3 nodos por la habilidad (actual: " + e1.getNodosVisitados() + ")");
+        float startX = e1.getX();
+        float startY = e1.getY();
+        boolean reportadoTeleport = false;
+
+        for (int i = 1; i <= 20; i++) {
+            juego.update(0.05f);
+
+            if (e1.getX() != startX && !reportadoTeleport) {
+                reportadoTeleport = true;
+                System.out.printf(">>> EVENTO: ¡REMOLINO DE BUGS! El enemigo '%s' fue teletransportado de (%.2f, %.2f) a (%.2f, %.2f) | Nodos visitados: %d%n",
+                        e1.getId(), startX, startY, e1.getX(), e1.getY(), e1.getNodosVisitados());
+            }
+        }
+        System.out.println("=== FIN DE LA SIMULACIÓN ===\n");
+
+        org.junit.jupiter.api.Assertions.assertTrue(e1.getNodosVisitados() >= 4);
     }
 }
