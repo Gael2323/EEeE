@@ -22,6 +22,9 @@ public class ProgresoJuego {
     /** Indica si se ha desbloqueado la torre Messenger (Eléctrica). */
     public static boolean messengerTowerUnlocked = false;
 
+    /** Indica si se ha desbloqueado la torre Firefox (Fuego). */
+    public static boolean firefoxUnlocked = false;
+
     // ── Estado del Hub (escritorio XP) ──────────────────────────────────────────
     /** Word / Nivel 1: siempre desbloqueado. */
     public static boolean wordUnlocked = true;
@@ -101,6 +104,7 @@ public class ProgresoJuego {
     public static boolean isTowerLocked(int towerType, int levelNum) {
         if (towerType == 1) return false;
         if (towerType == 2) return !mcafeeUnlocked;
+        if (towerType == 6) return !firefoxUnlocked;
         if (towerType == 7 && levelNum >= 2) return !ieTowerUnlocked;
         if (towerType == 8 && levelNum >= 2) return !messengerTowerUnlocked;
 

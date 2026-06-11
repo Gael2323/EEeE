@@ -225,6 +225,19 @@ public class Juego {
                             }
                         }
                     }
+                } else if (bala.getSourceTower() instanceof TorreDeFuego fuego) {
+                    double areaSq = fuego.getAreaAGolpear() * fuego.getAreaAGolpear();
+                    double dps = fuego.getDañoPorQuemadura() * fuego.getNivelMejora();
+                    for (Enemigo e : enemigos) {
+                        if (e != bala.getTarget()) {
+                            double dx = e.getX() - bala.getX();
+                            double dy = e.getY() - bala.getY();
+                            if (dx * dx + dy * dy <= areaSq) {
+                                e.aplicarFuego(dps, 3.0f);
+                                e.setVida(e.GetVida() - 5.0 * fuego.getNivelMejora());
+                            }
+                        }
+                    }
                 } else if (bala.getSourceTower() instanceof TorreMessenger messenger && bala.getTarget() != null) {
                     int bounces = bala.getBounces();
                     if (bounces < messenger.getRebotesMaximos()) {
