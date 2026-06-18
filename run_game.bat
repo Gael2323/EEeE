@@ -2,10 +2,22 @@
 setlocal
 
 echo ===========================================================
-echo   INICIANDO TOWER DEFENSE (MODO COMPATIBILIDAD JAVA 21)
+echo   INICIANDO TOWER DEFENSE
 echo ===========================================================
 
+if exist "prog-2-java-template-1.0.0.jar" (
+    echo [OK] Archivo compilado (.jar) detectado. Arrancando juego directo...
+    echo.
+    java -jar prog-2-java-template-1.0.0.jar
+    pause
+    exit /b
+)
+
 :: Intenta buscar automaticamente donde se instalo Java 21 para bypassear Java 25
+for /d %%I in ("C:\Program Files\JetBrains\IntelliJ IDEA*\jbr") do (
+    set "JAVA_HOME=%%I"
+    goto :encontrado
+)
 for /d %%I in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
     set "JAVA_HOME=%%I"
     goto :encontrado
