@@ -51,7 +51,7 @@ public class TorreMcaffeTest {
                 }
             }
 
-            // Imprimimos la vida de los enemigos paso a paso para ver el daño en directo
+            // Imprimimos la vida de los enemigos paso a paso para ver el damage en directo
             System.out.printf("[Paso %d - %.2fs] Vida actual -> e1: %.2f | e2: %.2f%n", 
                     i, i * 0.2f, e1.GetVida(), e2.GetVida());
         }

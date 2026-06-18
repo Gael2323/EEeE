@@ -165,6 +165,15 @@ public class MerchantDialog extends JDialog {
                     paintChoices(g2, getWidth(), getHeight());
                 }
 
+                if (state == DialogState.INTRO || state == DialogState.INTERACT_PROMPT || state == DialogState.STORY) {
+                    g2.setFont(new Font("SansSerif", Font.BOLD, 14));
+                    g2.setColor(new Color(200, 50, 50, 200));
+                    g2.fillRoundRect(getWidth() - 110, 20, 90, 30, 10, 10);
+                    g2.setColor(Color.WHITE);
+                    g2.drawRoundRect(getWidth() - 110, 20, 90, 30, 10, 10);
+                    g2.drawString("Saltar >>", getWidth() - 95, 40);
+                }
+
                 if (isClosing && irisRadius >= 0) {
                     Area blackRect = new Area(new Rectangle(0, 0, getWidth(), getHeight()));
                     double cx = getWidth() / 2.0;
@@ -358,6 +367,13 @@ public class MerchantDialog extends JDialog {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (isClosing) return;
+
+                Rectangle skipBounds = new Rectangle(panel.getWidth() - 110, 20, 90, 30);
+                if ((state == DialogState.INTRO || state == DialogState.INTERACT_PROMPT || state == DialogState.STORY) && skipBounds.contains(e.getPoint())) {
+                    loadState(DialogState.TOWER_CHOICE);
+                    panel.repaint();
+                    return;
+                }
 
                 if (state == DialogState.INTERACT_PROMPT) {
                     loadState(DialogState.STORY);

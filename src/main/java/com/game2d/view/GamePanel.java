@@ -123,6 +123,36 @@ final class GamePanel extends JPanel {
                 .sorted(Comparator.comparingInt(Drawable::getLayer))
                 .forEach(drawable -> paintDrawable(g2, drawable, w, h, worldW, worldH));
 
+        // Dibujar radio de alcance de torres si aplica
+        if (currentFrame instanceof com.miJuego.model.TowerDefenseSnapshot snapshot) {
+            com.miJuego.model.Juego juego = snapshot.getJuego();
+            if (juego != null && juego.getEstado() == com.miJuego.model.EstadoJuego.PLAYING) {
+                float sx = w / vpW;
+                float sy = h / vpH;
+
+                // 1. Rango para la torre que se está colocando (Hover/Ghost)
+                int selectedType = juego.getSelectedTowerType();
+                int hoverX = com.miJuego.model.ActualTowerContext.getHoverX();
+                int hoverY = com.miJuego.model.ActualTowerContext.getHoverY();
+                if (selectedType != 0 && hoverX >= 0 && hoverY >= 0) {
+                    double rango = juego.getTowerRange(selectedType);
+                    drawRangeCircle(g2, hoverX, hoverY, rango, camX, camY, sx, sy);
+                }
+
+                // 2. Rango para la torre seleccionada (Click)
+                int lastX = snapshot.getLastClickedX();
+                int lastY = snapshot.getLastClickedY();
+                if (lastX >= 0 && lastY >= 0) {
+                    for (com.miJuego.model.Torre t : juego.getTorres()) {
+                        if (Math.round(t.getX()) == lastX && Math.round(t.getY()) == lastY) {
+                            drawRangeCircle(g2, lastX, lastY, t.getRango(), camX, camY, sx, sy);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         g2.dispose();
     }
 
@@ -178,6 +208,11 @@ final class GamePanel extends JPanel {
             return;
         }
 
+        if (drawable instanceof com.miJuego.model.PeedyConfrontationDrawable peedyDrawable) {
+            peedyDrawable.draw(g2, panelW, panelH);
+            return;
+        }
+
         // Si es el segundo Clippy (duplicado/corrupto), usar su dibujado de grid personalizado
         if (drawable instanceof com.miJuego.model.SecondClippyDrawable secondClippyDrawable) {
             secondClippyDrawable.draw(g2, x, y, dw, dh);
@@ -227,5 +262,31 @@ final class GamePanel extends JPanel {
         float vpH  = com.miJuego.model.CameraContext.VIEWPORT_H;
         float camY = com.miJuego.model.CameraContext.getCameraY();
         return pixelY * vpH / Math.max(1, getHeight()) + camY;
+    }
+
+    private void drawRangeCircle(Graphics2D g2, int gridX, int gridY, double range,
+                                 float camX, float camY, float sx, float sy) {
+        float cx = gridX + 0.5f;
+        float cy = gridY + 0.5f;
+        int centerX = Math.round((cx - camX) * sx);
+        int centerY = Math.round((cy - camY) * sy);
+        int radiusX = Math.round((float) range * sx);
+        int radiusY = Math.round((float) range * sy);
+
+        int ovalX = centerX - radiusX;
+        int ovalY = centerY - radiusY;
+        int ovalW = radiusX * 2;
+        int ovalH = radiusY * 2;
+
+        // Relleno translúcido
+        g2.setColor(new Color(0, 180, 255, 25));
+        g2.fillOval(ovalX, ovalY, ovalW, ovalH);
+
+        // Borde discontinuo
+        g2.setColor(new Color(0, 180, 255, 150));
+        java.awt.Stroke originalStroke = g2.getStroke();
+        g2.setStroke(new java.awt.BasicStroke(2.0f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND, 1.0f, new float[]{6.0f, 4.0f}, 0.0f));
+        g2.drawOval(ovalX, ovalY, ovalW, ovalH);
+        g2.setStroke(originalStroke);
     }
 }

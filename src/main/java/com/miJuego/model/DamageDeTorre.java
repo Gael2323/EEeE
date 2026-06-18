@@ -1,5 +1,5 @@
 package com.miJuego.model;
 
-public interface DañoDeTorre {
+public interface DamageDeTorre {
     double ataque(Enemigo enemigo);
 }

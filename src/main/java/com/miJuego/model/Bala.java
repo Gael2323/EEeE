@@ -15,7 +15,7 @@ public class Bala implements Drawable {
     private final float destX;
     private final float destY;
     private final Torre sourceTower;
-    private final double daño;
+    private final double damage;
     private final float speed = 12.0f; // Velocidad del proyectil (celdas por segundo)
     private boolean hit = false;
     
@@ -23,11 +23,11 @@ public class Bala implements Drawable {
     private int bounces = 0;
     private java.util.Set<Enemigo> hitEnemies = new java.util.HashSet<>();
 
-    public Bala(String id, Torre sourceTower, Enemigo target, double daño) {
-        this(id, sourceTower, target, daño, sourceTower.getX() + 0.5f, sourceTower.getY() + 0.5f);
+    public Bala(String id, Torre sourceTower, Enemigo target, double damage) {
+        this(id, sourceTower, target, damage, sourceTower.getX() + 0.5f, sourceTower.getY() + 0.5f);
     }
 
-    public Bala(String id, Torre sourceTower, Enemigo target, double daño, float startX, float startY) {
+    public Bala(String id, Torre sourceTower, Enemigo target, double damage, float startX, float startY) {
         this.id = id;
         this.sourceTower = sourceTower;
         this.x = startX;
@@ -43,7 +43,7 @@ public class Bala implements Drawable {
             this.destX = this.x;
             this.destY = this.y;
         }
-        this.daño = daño;
+        this.damage = damage;
     }
 
     public void update(float deltaSeconds) {
@@ -67,16 +67,16 @@ public class Bala implements Drawable {
             this.y = targetY;
             this.hit = true;
             
-            // Aplicar daño si es a un enemigo directo
+            // Aplicar damage si es a un enemigo directo
             if (target != null) {
-                if (sourceTower instanceof DañoDeTorre) {
-                    ((DañoDeTorre) sourceTower).ataque(target);
+                if (sourceTower instanceof DamageDeTorre) {
+                    ((DamageDeTorre) sourceTower).ataque(target);
                 } else {
-                    target.setVida(target.GetVida() - daño);
+                    target.setVida(target.GetVida() - damage);
                 }
             }
             
-            // El daño de área de Avast se hace en Juego.java
+            // El damage de área de Avast se hace en Juego.java
 
         } else {
             // Avanzar hacia el objetivo
@@ -97,8 +97,8 @@ public class Bala implements Drawable {
         return target;
     }
 
-    public double getDaño() {
-        return daño;
+    public double getDamage() {
+        return damage;
     }
 
     public int getBounces() {

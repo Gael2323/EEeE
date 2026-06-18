@@ -137,6 +137,9 @@ public class Nivel {
             oleadaActualObj = oleadas.get(0);
         } else {
             // Niveles > 1 (Mundo aleatorio)
+            if (numeroNivel == 2) {
+                maximaOleadas = 6;
+            }
             buildPolygon = null;
             
             // La imagen de la papelera es 1672x941. El mundo lógico es 64x48.
@@ -230,33 +233,169 @@ public class Nivel {
 
     private void generarEnemigosOleadaAleatoria() {
         Oleada<Enemigo> nuevaOleada = new Oleada<>(oleadaActual);
-        // OLEADA ALEATORIA (Dificultad progresiva por nivel y por oleada)
+        
+        if (numeroNivel == 2) {
+            generarEnemigosNivel2(nuevaOleada);
+        } else {
+            generarEnemigosGenerico(nuevaOleada);
+        }
+
+        oleadas.add(nuevaOleada);
+        if (oleadaActualObj == null) {
+            oleadaActualObj = nuevaOleada;
+        }
+    }
+
+    private void generarEnemigosNivel2(Oleada<Enemigo> nuevaOleada) {
+        if (oleadaActual == 5) {
+            // Oleada 5 vacía (cinemática/transición Peedy)
+            nuevaOleada.setCinematicWave(true);
+            return;
+        }
+
+        float dificultadGlobal = numeroNivel + (oleadaActual * 0.4f);
+
+        if (oleadaActual == 6) {
+            // Oleada 6: Boss Peedy + Secuaces
+            nuevaOleada.setBossWave(true);
+            BossPeedy peedy = new BossPeedy("lvl2-w6-bosspeedy");
+            peedy.setVida(peedy.GetVida() * 1.5); // Boss con más vida por ser nivel 2
+            nuevaOleada.addEnemigo(peedy);
+            
+            int cantSecuaces = 15 + random.nextInt(10);
+            for (int i=0; i<cantSecuaces; i++) {
+                Enemigo e;
+                double rand = random.nextDouble();
+                if (rand < 0.4) e = new PopUp("lvl2-w6-popup-" + i, PopUp.Variante.ERROR);
+                else if (rand < 0.7) e = new EnemigoMiniIdiot("lvl2-w6-miniidiot-" + i);
+                else e = new CorruptedFolder("lvl2-w6-folder-" + i);
+                e.setVida(e.GetVida() * (1 + (dificultadGlobal * 0.15)));
+                nuevaOleada.addEnemigo(e);
+            }
+            return;
+        }
+
+        int cantEnemigos = (int) (dificultadGlobal * 8) + random.nextInt(10);
+        spawnInterval = Math.max(0.3f, 2.0f - (dificultadGlobal * 0.12f));
+
+        if (oleadaActual == 4) {
+            cantEnemigos = (int) (cantEnemigos * 1.5f); // Caos total
+            spawnInterval = 0.2f;
+        }
+
+        boolean forceFakeFirewall = ProgresoJuego.ieTowerUnlocked;
+        boolean forceAres = ProgresoJuego.messengerTowerUnlocked;
+
+        for (int i = 0; i < cantEnemigos; i++) {
+            Enemigo e;
+            double rand = random.nextDouble();
+
+            if (oleadaActual == 1) {
+                // 60% PopUp, 35% Idiot/MiniIdiot, 5% CorruptedFolder
+                if (rand < 0.60) {
+                    PopUp.Variante var = PopUp.Variante.values()[random.nextInt(PopUp.Variante.values().length)];
+                    e = new PopUp("lvl2-w1-popup-" + i, var);
+                } else if (rand < 0.95) {
+                    if (random.nextBoolean()) {
+                        e = new EnemigoMultiple("lvl2-w1-idiot-" + i);
+                    } else {
+                        e = new EnemigoMiniIdiot("lvl2-w1-miniidiot-" + i);
+                    }
+                } else {
+                    e = new CorruptedFolder("lvl2-w1-folder-" + i);
+                }
+            } else if (oleadaActual == 2) {
+                // Fuerzas de counter si corresponden, reemplazando a los comunes al principio
+                if (forceFakeFirewall) {
+                    e = new FakeFirewall("lvl2-w2-firewall-forced");
+                    forceFakeFirewall = false;
+                } else if (forceAres) {
+                    e = new Ares("lvl2-w2-ares-forced");
+                    forceAres = false;
+                } else {
+                    // 30% PopUp, 30% Idiot, 30% Corrupted, 10% Counters
+                    if (rand < 0.30) {
+                        PopUp.Variante var = PopUp.Variante.values()[random.nextInt(PopUp.Variante.values().length)];
+                        e = new PopUp("lvl2-w2-popup-" + i, var);
+                    } else if (rand < 0.60) {
+                        if (random.nextBoolean()) e = new EnemigoMultiple("lvl2-w2-idiot-" + i);
+                        else e = new EnemigoMiniIdiot("lvl2-w2-miniidiot-" + i);
+                    } else if (rand < 0.90) {
+                        e = new CorruptedFolder("lvl2-w2-folder-" + i);
+                    } else if (rand < 0.95) {
+                        e = new FakeFirewall("lvl2-w2-firewall-" + i);
+                    } else {
+                        e = new Ares("lvl2-w2-ares-" + i);
+                    }
+                }
+            } else if (oleadaActual == 3) {
+                // Counters útiles aumentados (20%), inútiles (5%), el resto dividido 75%
+                double probFirewall = ProgresoJuego.ieTowerUnlocked ? 0.20 : 0.05;
+                double probAres = ProgresoJuego.messengerTowerUnlocked ? 0.20 : 0.05;
+                
+                if (rand < probFirewall) {
+                    e = new FakeFirewall("lvl2-w3-firewall-" + i);
+                } else if (rand < probFirewall + probAres) {
+                    e = new Ares("lvl2-w3-ares-" + i);
+                } else {
+                    double r2 = random.nextDouble();
+                    if (r2 < 0.33) {
+                        PopUp.Variante var = PopUp.Variante.values()[random.nextInt(PopUp.Variante.values().length)];
+                        e = new PopUp("lvl2-w3-popup-" + i, var);
+                    } else if (r2 < 0.66) {
+                        if (random.nextBoolean()) e = new EnemigoMultiple("lvl2-w3-idiot-" + i);
+                        else e = new EnemigoMiniIdiot("lvl2-w3-miniidiot-" + i);
+                    } else {
+                        e = new CorruptedFolder("lvl2-w3-folder-" + i);
+                    }
+                }
+            } else {
+                // Oleada 4: Caos, altas chances de todo
+                if (rand < 0.20) {
+                    e = new FakeFirewall("lvl2-w4-firewall-" + i);
+                } else if (rand < 0.40) {
+                    e = new Ares("lvl2-w4-ares-" + i);
+                } else if (rand < 0.60) {
+                    PopUp.Variante var = PopUp.Variante.values()[random.nextInt(PopUp.Variante.values().length)];
+                    e = new PopUp("lvl2-w4-popup-" + i, var);
+                } else if (rand < 0.80) {
+                    if (random.nextBoolean()) e = new EnemigoMultiple("lvl2-w4-idiot-" + i);
+                    else e = new EnemigoMiniIdiot("lvl2-w4-miniidiot-" + i);
+                } else {
+                    e = new CorruptedFolder("lvl2-w4-folder-" + i);
+                }
+            }
+
+            e.setVida(e.GetVida() * (1 + (dificultadGlobal * 0.15)));
+            nuevaOleada.addEnemigo(e);
+        }
+    }
+
+    private void generarEnemigosGenerico(Oleada<Enemigo> nuevaOleada) {
         float dificultadGlobal = numeroNivel + (oleadaActual * 0.4f);
         int cantEnemigos = (int) (dificultadGlobal * 8) + random.nextInt(10);
         spawnInterval = Math.max(0.3f, 2.0f - (dificultadGlobal * 0.12f));
 
         for(int i=0; i<cantEnemigos; i++) {
             Enemigo e;
-            int tipo = random.nextInt(100);
-            // Mayor dificultad, más chance de enemigos difíciles
-            if (tipo < 40 - (dificultadGlobal * 2)) {
-                e = new Duende("lvl" + numeroNivel + "-w" + oleadaActual + "-duende-" + i);
-            } else if (tipo < 70 - (dificultadGlobal * 1.5)) {
-                e = new EnemigoComun("lvl" + numeroNivel + "-w" + oleadaActual + "-comun-" + i, random.nextBoolean());
-            } else if (tipo < 90) {
+            double rand = random.nextDouble();
+            if (rand < 0.15) {
+                e = new CorruptedFolder("lvl" + numeroNivel + "-w" + oleadaActual + "-folder-" + i);
+            } else if (rand < 0.30) {
+                e = new Ares("lvl" + numeroNivel + "-w" + oleadaActual + "-ares-" + i);
+            } else if (rand < 0.45) {
+                e = new FakeFirewall("lvl" + numeroNivel + "-w" + oleadaActual + "-firewall-" + i);
+            } else if (rand < 0.60) {
                 e = new EnemigoMultiple("lvl" + numeroNivel + "-w" + oleadaActual + "-multiple-" + i);
             } else {
-                e = new PopUp("lvl" + numeroNivel + "-w" + oleadaActual + "-popup-" + i, PopUp.Variante.ERROR);
+                PopUp.Variante var = PopUp.Variante.values()[random.nextInt(PopUp.Variante.values().length)];
+                e = new PopUp("lvl" + numeroNivel + "-w" + oleadaActual + "-popup-" + i, var);
             }
 
             // Escalado de stats
             e.setVida(e.GetVida() * (1 + (dificultadGlobal * 0.15)));
             
             nuevaOleada.addEnemigo(e);
-        }
-        oleadas.add(nuevaOleada);
-        if (oleadaActualObj == null) {
-            oleadaActualObj = nuevaOleada;
         }
     }
 
@@ -298,6 +437,7 @@ public class Nivel {
     }
 
     public boolean verificarFinDeOleada() {
+        if (spawnPaused) return false;
         return (oleadaActualObj == null || oleadaActualObj.isEmpty()) && enemigosRestantes.isEmpty();
     }
 

@@ -38,12 +38,44 @@ public final class TowerDefenseModel implements GameModel {
     // Tutorial de Clippy interactivo
     private final ClippyTutorial tutorial;
 
-    // Confrontación cinemática de Clippy
+    // Confrontación cinemática de Clippy (Nivel 1)
     private ClippyConfrontation confrontation;
+
+    // Confrontación de Peedy (Nivel 2)
+    private PeedyConfrontation peedyConfrontation;
     
     private com.miJuego.model.TorreAvast torreEsperandoCoordenadas = null;
 
     private javax.sound.sampled.Clip bgMusic;
+
+    // Lvl 2 Intro
+    private boolean lvl2IntroActive = false;
+    private int lvl2IntroStep = 0;
+    private float lvl2ClippyX = 55.04f;
+    private float lvl2ClippyY = 26.52f;
+
+    // Lvl 2 Mid Event
+    private boolean lvl2MidEventActive = false;
+    private int lvl2MidEventStep = 0;
+
+    public boolean isLvl2IntroActive() {
+        return lvl2IntroActive;
+    }
+
+    public void setLvl2IntroActive(boolean active) {
+        this.lvl2IntroActive = active;
+        if (!active) {
+            this.lvl2IntroStep = 0;
+        }
+    }
+
+    public int getLvl2IntroStep() {
+        return lvl2IntroStep;
+    }
+
+    public void setLvl2IntroStep(int step) {
+        this.lvl2IntroStep = step;
+    }
 
     public TowerDefenseModel(GameView view) {
         this(view, 1);
@@ -55,6 +87,7 @@ public final class TowerDefenseModel implements GameModel {
         this.juego.restart(levelNum);
         this.tutorial = new ClippyTutorial();
         this.confrontation = new ClippyConfrontation();
+        this.peedyConfrontation = new PeedyConfrontation();
 
         this.prizePopupOpened = false;
 
@@ -62,6 +95,14 @@ public final class TowerDefenseModel implements GameModel {
         if (levelNum == 1) {
             juego.setEstado(EstadoJuego.PLAYING);
             juego.getNivelActual().setSpawnPaused(true);
+        } else if (levelNum == 2) {
+            juego.setEstado(EstadoJuego.PLAYING);
+            juego.getNivelActual().setSpawnPaused(true);
+            this.lvl2IntroActive = true;
+            this.lvl2IntroStep = 1;
+            // Snap camera initially to center on Clippy
+            com.miJuego.model.CameraContext.setTargetViewport(20f, 15f);
+            com.miJuego.model.CameraContext.snapTo(44.0f, 19.0f);
         } else {
             juego.setEstado(EstadoJuego.PLAYING);
             juego.getNivelActual().setSpawnPaused(true);
@@ -156,6 +197,28 @@ public final class TowerDefenseModel implements GameModel {
             ));
         }
 
+        // Dibujar introducción de Clippy del Nivel 2 si está activa
+        if (nivel.getNumeroNivel() == 2 && lvl2IntroActive) {
+            drawables.add(new ClippyTutorialDrawable(
+                    ClippyTutorial.Estado.INTRO_1,
+                    getLvl2Lines(),
+                    getLvl2Expression(),
+                    lvl2ClippyX,
+                    lvl2ClippyY
+            ));
+        }
+
+        // Dibujar evento mid de Clippy del Nivel 2 si está activo
+        if (nivel.getNumeroNivel() == 2 && lvl2MidEventActive) {
+            drawables.add(new ClippyTutorialDrawable(
+                    ClippyTutorial.Estado.INTRO_1,
+                    getLvl2MidEventLines(),
+                    getLvl2MidEventExpression(),
+                    lvl2ClippyX,
+                    lvl2ClippyY
+            ));
+        }
+
         // Dibujar a los personajes de la confrontación en la grilla si está activa (estilo Final Fantasy)
         if (nivel.getNumeroNivel() == 1 && nivel.verificarFinDeNivel()) {
             if (confrontation.getEstadoActual() != ClippyConfrontation.Estado.INACTIVE &&
@@ -181,7 +244,10 @@ public final class TowerDefenseModel implements GameModel {
             drawables.add(new ClippyConfrontationDrawable(confrontation));
         }
 
-
+        // Dibujar la confrontación cinemática de Peedy si está activa
+        if (peedyConfrontation.isActive()) {
+            drawables.add(new PeedyConfrontationDrawable(peedyConfrontation));
+        }
 
         // Traducir EstadoJuego de dominio a SessionState de MVC
         SessionState visualState = switch (juego.getEstado()) {
@@ -216,6 +282,38 @@ public final class TowerDefenseModel implements GameModel {
         // Actualizar el tutorial de Clippy si está activo
         if (juego.getNivelActual().getNumeroNivel() == 1 && tutorial.isActive()) {
             tutorial.update(deltaSeconds);
+            
+            // Si está en escena cinemática, observar la corrupción del camino
+            if (tutorial.getEstadoActual() == ClippyTutorial.Estado.CINEMATIC_WALK) {
+                // Buscar el corruptor
+                Enemigo corruptor = null;
+                for (Enemigo e : juego.getNivelActual().getEnemigosRestantes()) {
+                    if ("popup-corruptor".equals(e.getId())) {
+                        corruptor = e;
+                        break;
+                    }
+                }
+                
+                if (corruptor != null) {
+                    int nodos = corruptor.getNodosVisitados();
+                    if (nodos <= 1) {
+                        com.game2d.view.BackgroundSettings.getInstance().setImagePath("assets/ingame/nivel1_normal.png");
+                    } else if (nodos == 2) {
+                        com.game2d.view.BackgroundSettings.getInstance().setImagePath("assets/ingame/nivel1_Word_CaminoCorrupto1.png");
+                    } else if (nodos == 3) {
+                        com.game2d.view.BackgroundSettings.getInstance().setImagePath("assets/ingame/nivel1_Word_CaminoCorrupto2.png");
+                    } else {
+                        com.game2d.view.BackgroundSettings.getInstance().setImagePath("assets/ingame/nivel_1TotalmenteCorrupto.png");
+                    }
+                } else {
+                    // El corruptor llegó al final de la ruta (impactó en Clippy!)
+                    com.game2d.view.BackgroundSettings.getInstance().setImagePath("assets/ingame/nivel_1TotalmenteCorrupto.png");
+                    // Trigger screen shake from the surprise impact on Clippy
+                    com.miJuego.model.CameraContext.triggerShake(0.8f, 2.0f);
+                    tutorial.setEstadoActual(ClippyTutorial.Estado.CLIPPY_REACTION);
+                }
+            }
+            
             // Si el tutorial está esperando a que el jugador coloque la primera torre
             // y el jugador ya colocó al menos una torre, avanzar al paso de éxito
             if (tutorial.getEstadoActual() == ClippyTutorial.Estado.WAIT_PLACE && !juego.getTorres().isEmpty()) {
@@ -263,6 +361,21 @@ public final class TowerDefenseModel implements GameModel {
             }
         }
 
+        // Actualizar la confrontación de Peedy si está activa
+        if (peedyConfrontation.isActive()) {
+            peedyConfrontation.update(deltaSeconds);
+            if (!peedyConfrontation.isActive()) {
+                com.miJuego.model.CameraContext.setTargetViewport(64f, 48f);
+                com.miJuego.model.CameraContext.setCameraX(0f);
+                com.miJuego.model.CameraContext.setCameraY(0f);
+                // Si terminó la cinemática de la oleada 5, preparo la siguiente (6)
+                if (juego.getNivelActual().getOleadaActual() == 5) {
+                    juego.getNivelActual().prepararSiguienteOleada();
+                    view.successMessage("¡Cuidado, es Peedy! Presione ENTER para iniciar la oleada final.");
+                }
+            }
+        }
+
         juego.update(deltaSeconds);
 
         // Control de tiempo de expiración de selección de torre (10 segundos)
@@ -299,11 +412,25 @@ public final class TowerDefenseModel implements GameModel {
                     handleLevelCompleted();
                 }
             } else if (juego.getNivelActual().verificarFinDeOleada()) {
+                int finishedWave = juego.getNivelActual().getOleadaActual();
                 // Avanzar a la siguiente oleada del mismo nivel
                 juego.getNivelActual().prepararSiguienteOleada();
-                view.successMessage("¡Oleada superada! Presione ENTER para iniciar la oleada " 
-                    + juego.getNivelActual().getOleadaActual() + " de " 
-                    + juego.getNivelActual().getMaximaOleadas() + ".");
+                
+                if (juego.getNivelActual().getNumeroNivel() == 2 && finishedWave == 3) {
+                    lvl2MidEventActive = true;
+                    lvl2MidEventStep = 1;
+                    com.miJuego.model.CameraContext.setTargetViewport(20f, 15f);
+                    com.miJuego.model.CameraContext.snapTo(lvl2ClippyX, lvl2ClippyY);
+                } else if (juego.getNivelActual().getNumeroNivel() == 2 && finishedWave == 4) {
+                    peedyConfrontation.initClippyPosition(lvl2ClippyX, lvl2ClippyY);
+                    peedyConfrontation.setEstadoActual(PeedyConfrontation.Estado.TALK_INTRO);
+                    com.miJuego.model.CameraContext.setTargetViewport(20f, 15f);
+                    com.miJuego.model.CameraContext.snapTo(lvl2ClippyX, lvl2ClippyY);
+                } else {
+                    view.successMessage("¡Oleada superada! Presione ENTER para iniciar la oleada " 
+                        + juego.getNivelActual().getOleadaActual() + " de " 
+                        + juego.getNivelActual().getMaximaOleadas() + ".");
+                }
             }
         }
 
@@ -373,7 +500,33 @@ public final class TowerDefenseModel implements GameModel {
     private void avanzarTutorial() {
         ClippyTutorial.Estado est = tutorial.getEstadoActual();
         if (est == ClippyTutorial.Estado.INTRO_1) {
-            tutorial.setEstadoActual(ClippyTutorial.Estado.INTRO_2);
+            // Iniciar animación cinemática de corrupción del camino
+            tutorial.setEstadoActual(ClippyTutorial.Estado.CINEMATIC_WALK);
+            // Spawnear enemigo corruptor con velocidad alta (toma de imprevisto)
+            Enemigo popUpError = new com.miJuego.model.PopUp("popup-corruptor", com.miJuego.model.PopUp.Variante.ERROR);
+            popUpError.setRapidez(18.0); // velocidad muy alta
+            
+            // Construir camino corto temporal que desvía el corruptor directo hacia la posición de Clippy
+            WaypointNode spawn = juego.getNivelActual().getSpawnNodes().get(0);
+            WaypointNode w1 = new WaypointNode(19.627f, 8.36f);
+            WaypointNode w2 = new WaypointNode(16.523f, 10.843f);
+            WaypointNode wClippy = new WaypointNode(tutorial.getActualX(), tutorial.getActualY());
+            w2.addSiguiente(wClippy);
+            w1.addSiguiente(w2);
+            
+            WaypointNode tempSpawn = new WaypointNode(spawn.x, spawn.y);
+            tempSpawn.addSiguiente(w1);
+            
+            popUpError.setPosicion(tempSpawn.x, tempSpawn.y);
+            popUpError.setTargetNode(w1);
+            popUpError.setNodosVisitados(1);
+            juego.getNivelActual().getEnemigosRestantes().add(popUpError);
+        } else if (est == ClippyTutorial.Estado.CLIPPY_REACTION) {
+            // Avanzar a mostrar popup
+            tutorial.setEstadoActual(ClippyTutorial.Estado.SHOW_UNLOCK_POPUP);
+            showAntivirusUnlockPopup(() -> {
+                tutorial.setEstadoActual(ClippyTutorial.Estado.INTRO_2);
+            });
         } else if (est == ClippyTutorial.Estado.INTRO_2) {
             // Forzar la selección de la torre antivirus (tipo 1) y avanzar
             juego.setSelectedTowerType(1);
@@ -391,6 +544,78 @@ public final class TowerDefenseModel implements GameModel {
                 startMusic();
             }
         }
+    }
+
+    private void showAntivirusUnlockPopup(Runnable onClose) {
+        if (java.awt.GraphicsEnvironment.isHeadless() || com.miJuego.demo.DemoLauncher.getFrame() == null) {
+            if (onClose != null) {
+                onClose.run();
+            }
+            return;
+        }
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            java.awt.Frame parent = com.miJuego.demo.DemoLauncher.getFrame();
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parent, true);
+            dialog.setUndecorated(true);
+
+            // Cargar imagen
+            java.awt.image.BufferedImage img = null;
+            try {
+                java.net.URL imgUrl = getClass().getClassLoader().getResource("assets/ingame/You_Win_Torre_Antivirus.png");
+                if (imgUrl != null) {
+                    img = javax.imageio.ImageIO.read(imgUrl);
+                }
+            } catch (Exception e) {
+                System.err.println("No se pudo cargar la imagen del popup: " + e.getMessage());
+            }
+
+            int w = 560;
+            int h = 420;
+            if (img != null) {
+                w = img.getWidth() > 0 ? img.getWidth() : 560;
+                h = img.getHeight() > 0 ? img.getHeight() : 420;
+                if (w > 800) {
+                    double aspect = (double) h / w;
+                    w = 800;
+                    h = (int) (w * aspect);
+                }
+            }
+            dialog.setSize(w, h);
+            dialog.setLocationRelativeTo(parent);
+
+            final java.awt.image.BufferedImage finalImg = img;
+            javax.swing.JPanel panel = new javax.swing.JPanel(null) {
+                @Override
+                protected void paintComponent(java.awt.Graphics g) {
+                    super.paintComponent(g);
+                    if (finalImg != null) {
+                        g.drawImage(finalImg, 0, 0, getWidth(), getHeight(), null);
+                    } else {
+                        g.setColor(new java.awt.Color(40, 40, 40));
+                        g.fillRect(0, 0, getWidth(), getHeight());
+                        g.setColor(java.awt.Color.WHITE);
+                        g.setFont(new java.awt.Font("Tahoma", java.awt.Font.BOLD, 18));
+                        g.drawString("¡NUEVA TORRE DESBLOQUEADA!", 50, 100);
+                        g.setFont(new java.awt.Font("Tahoma", java.awt.Font.PLAIN, 14));
+                        g.drawString("Torre Antivirus", 50, 140);
+                    }
+                }
+            };
+
+            // Cerrar al hacer clic en cualquier parte de la ventana
+            panel.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    dialog.dispose();
+                    if (onClose != null) {
+                        onClose.run();
+                    }
+                }
+            });
+
+            dialog.add(panel);
+            dialog.setVisible(true);
+        });
     }
 
     @Override
@@ -414,6 +639,73 @@ public final class TowerDefenseModel implements GameModel {
                 view.successMessage("Cinemática salteada: Nivel completado.");
                 return;
             }
+        }
+
+        // Intercepción de la cinemática de introducción de Nivel 2
+        if (juego.getNivelActual().getNumeroNivel() == 2 && lvl2IntroActive) {
+            if (input.getKind() == InputKind.KEY_PRESSED) {
+                String key = input.getKeyCode().orElse("");
+                if (key.equalsIgnoreCase("Space") || key.equalsIgnoreCase("Space Bar") || key.equalsIgnoreCase("Enter")) {
+                    avanzarLvl2Intro();
+                    return;
+                }
+            } else if (input.getKind() == InputKind.ACTION) {
+                String actionId = input.getActionId().orElse("");
+                if (actionId.equals(GameCommands.PAUSE) || actionId.equals(GameCommands.START)) {
+                    avanzarLvl2Intro();
+                    return;
+                }
+            } else if (input.getKind() == InputKind.POINTER_DOWN) {
+                avanzarLvl2Intro();
+                return;
+            }
+            return; // Bloquea cualquier otra acción durante la cinemática de introducción
+        }
+
+        // Intercepción del evento mid de Nivel 2 (Wave 3 -> 4)
+        if (juego.getNivelActual().getNumeroNivel() == 2 && lvl2MidEventActive) {
+            if (input.getKind() == InputKind.KEY_PRESSED) {
+                String key = input.getKeyCode().orElse("");
+                if (key.equalsIgnoreCase("Space") || key.equalsIgnoreCase("Space Bar") || key.equalsIgnoreCase("Enter")) {
+                    avanzarLvl2MidEvent();
+                    return;
+                }
+            } else if (input.getKind() == InputKind.ACTION) {
+                String actionId = input.getActionId().orElse("");
+                if (actionId.equals(GameCommands.PAUSE) || actionId.equals(GameCommands.START)) {
+                    avanzarLvl2MidEvent();
+                    return;
+                }
+            } else if (input.getKind() == InputKind.POINTER_DOWN) {
+                avanzarLvl2MidEvent();
+                return;
+            }
+            return; // Bloquea cualquier otra acción durante la cinemática
+        }
+
+        // Intercepción del evento de Peedy (Wave 4 -> 5 -> 6)
+        if (peedyConfrontation.isActive()) {
+            if (peedyConfrontation.isDialoguePhase()) {
+                if (input.getKind() == InputKind.POINTER_DOWN) {
+                    peedyConfrontation.advanceDialogue();
+                    return;
+                }
+                if (input.getKind() == InputKind.KEY_PRESSED) {
+                    String key = input.getKeyCode().orElse("");
+                    if (key.equalsIgnoreCase("Space") || key.equalsIgnoreCase("Space Bar") || key.equalsIgnoreCase("Enter")) {
+                        peedyConfrontation.advanceDialogue();
+                        return;
+                    }
+                }
+                if (input.getKind() == InputKind.ACTION) {
+                    String actionId = input.getActionId().orElse("");
+                    if (actionId.equals(GameCommands.PAUSE) || actionId.equals(GameCommands.START)) {
+                        peedyConfrontation.advanceDialogue();
+                        return;
+                    }
+                }
+            }
+            return; // Bloquea cualquier otra acción durante la cinemática
         }
 
         // Si está esperando que se abra/cierre el popup de adware
@@ -450,6 +742,7 @@ public final class TowerDefenseModel implements GameModel {
         if (juego.getNivelActual().getNumeroNivel() == 1 && tutorial.isActive()) {
             ClippyTutorial.Estado est = tutorial.getEstadoActual();
             boolean esConversacional = (est == ClippyTutorial.Estado.INTRO_1 ||
+                                        est == ClippyTutorial.Estado.CLIPPY_REACTION ||
                                         est == ClippyTutorial.Estado.INTRO_2 ||
                                         est == ClippyTutorial.Estado.PLACE_SUCCESS ||
                                         est == ClippyTutorial.Estado.OUTRO);
@@ -600,6 +893,12 @@ public final class TowerDefenseModel implements GameModel {
                         if (bgMusic == null && juego.getNivelActual().getNumeroNivel() == 1) {
                             startMusic();
                         }
+                        if (juego.getNivelActual().getNumeroNivel() == 2) {
+                            int nextWave = juego.getNivelActual().getOleadaActual();
+                            if (nextWave == 2) {
+                                startMusic("/assets/recycle_bin/Level2_Oleadas2AndLasQueSiguen.mp3");
+                            }
+                        }
                     }
                 } else {
                     juego.restart();
@@ -636,6 +935,15 @@ public final class TowerDefenseModel implements GameModel {
                     juego.getNivelActual().setSpawnPaused(true);
                     tutorial.setEstadoActual(ClippyTutorial.Estado.INTRO_1);
                     tutorial.setActive(true);
+                } else if (juego.getNivelActual().getNumeroNivel() == 2) {
+                    stopMusic();
+                    juego.setEstado(EstadoJuego.PLAYING);
+                    juego.getNivelActual().setSpawnPaused(true);
+                    lvl2IntroActive = true;
+                    lvl2IntroStep = 1;
+                    // Snap camera initially to center on Clippy
+                    com.miJuego.model.CameraContext.setTargetViewport(20f, 15f);
+                    com.miJuego.model.CameraContext.snapTo(44.0f, 19.0f);
                 } else {
                     juego.setEstado(EstadoJuego.PLAYING);
                     juego.getNivelActual().iniciarOleada();
@@ -761,6 +1069,15 @@ public final class TowerDefenseModel implements GameModel {
                     } catch (IllegalStateException ex) {
                         view.errorMessage(ex.getMessage());
                     }
+                }
+            }
+            case "Z", "z" -> {
+                if (juego.getNivelActual() != null && juego.getEstado() == EstadoJuego.PLAYING) {
+                    juego.getNivelActual().getEnemigosRestantes().clear();
+                    while (juego.getNivelActual().getOleadaActualObj() != null && !juego.getNivelActual().getOleadaActualObj().isEmpty()) {
+                        juego.getNivelActual().getOleadaActualObj().pollEnemigo();
+                    }
+                    view.successMessage("Oleada " + juego.getNivelActual().getOleadaActual() + " salteada automáticamente.");
                 }
             }
             case "M", "m" -> {
@@ -900,8 +1217,13 @@ public final class TowerDefenseModel implements GameModel {
     }
 
     private void startMusic() {
+        startMusic("/assets/ingame/Level1_Word_Theme.mp3");
+    }
+
+    private void startMusic(String resourcePath) {
+        stopMusic();
         try {
-            java.net.URL url = getClass().getResource("/assets/ingame/Level1_Word_Theme.mp3");
+            java.net.URL url = getClass().getResource(resourcePath);
             if (url != null) {
                 javax.sound.sampled.AudioInputStream in = javax.sound.sampled.AudioSystem.getAudioInputStream(url);
                 javax.sound.sampled.AudioFormat baseFormat = in.getFormat();
@@ -930,6 +1252,97 @@ public final class TowerDefenseModel implements GameModel {
             bgMusic.close();
             bgMusic = null;
         }
+    }
+
+    private void avanzarLvl2Intro() {
+        if (lvl2IntroStep == 1) {
+            lvl2IntroStep = 2;
+            // Zoom out to show the entire map, centered at 0,0
+            com.miJuego.model.CameraContext.setTargetViewport(64f, 48f);
+            com.miJuego.model.CameraContext.setCameraX(0f);
+            com.miJuego.model.CameraContext.setCameraY(0f);
+        } else if (lvl2IntroStep == 2) {
+            lvl2IntroStep = 3;
+        } else if (lvl2IntroStep == 3) {
+            lvl2IntroActive = false;
+            lvl2IntroStep = 0;
+            // Retornar control al jugador
+            juego.getNivelActual().setSpawnPaused(true);
+            startMusic("/assets/recycle_bin/Level2_Presentation_Oleada1.mp3");
+            view.successMessage("¡Presione ENTER para comenzar la primera oleada!");
+        }
+    }
+
+    private String[] getLvl2Lines() {
+        if (lvl2IntroStep == 1) {
+            return new String[]{
+                "Vaya, nunca habia entrado en",
+                "este lugar, supongo que es",
+                "el inicio de nuestros problemas..."
+            };
+        } else if (lvl2IntroStep == 2) {
+            return new String[]{
+                "...pero es.... ENORME"
+            };
+        } else if (lvl2IntroStep == 3) {
+            return new String[]{
+                "Te apoyaré vigilando desde aquí.",
+                "Estaré por aquí por si necesitas",
+                "una mano."
+            };
+        }
+        return new String[0];
+    }
+
+    private String getLvl2Expression() {
+        if (lvl2IntroStep == 1) {
+            return "sorprendido";
+        } else if (lvl2IntroStep == 2) {
+            return "sorprendido";
+        } else if (lvl2IntroStep == 3) {
+            return "feliz";
+        }
+        return "neutro";
+    }
+
+    private void avanzarLvl2MidEvent() {
+        if (lvl2MidEventStep == 1) {
+            lvl2MidEventStep = 2;
+        } else if (lvl2MidEventStep == 2) {
+            lvl2MidEventActive = false;
+            lvl2MidEventStep = 0;
+            com.miJuego.model.CameraContext.setTargetViewport(64f, 48f);
+            com.miJuego.model.CameraContext.setCameraX(0f);
+            com.miJuego.model.CameraContext.setCameraY(0f);
+            view.successMessage("¡Oleada superada! Presione ENTER para iniciar la oleada " 
+                    + juego.getNivelActual().getOleadaActual() + " de " 
+                    + juego.getNivelActual().getMaximaOleadas() + ".");
+        }
+    }
+
+    private String[] getLvl2MidEventLines() {
+        if (lvl2MidEventStep == 1) {
+            return new String[]{
+                "¿No te molestan tantos pop up?...",
+                "Voy a invetigar un poco fuera de",
+                "aqui a ver si los puedo eliminar..."
+            };
+        } else if (lvl2MidEventStep == 2) {
+            return new String[]{
+                "No encontre nada..",
+                "Oh, creo que toque algo que no era..."
+            };
+        }
+        return new String[0];
+    }
+
+    private String getLvl2MidEventExpression() {
+        if (lvl2MidEventStep == 1) {
+            return "pensando";
+        } else if (lvl2MidEventStep == 2) {
+            return "invisible"; // Se vuelve invisible pero el globo sigue
+        }
+        return "neutro";
     }
 
     // --- Drawables Auxiliares ---

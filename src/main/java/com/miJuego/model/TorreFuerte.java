@@ -2,9 +2,9 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public class TorreFuerte extends Torre implements DañoDeTorre {
+public class TorreFuerte extends Torre implements DamageDeTorre {
     private Enemigo objetivo;
-    private double dañoBase = 80.0;
+    private double damageBase = 80.0;
 
     public TorreFuerte(String id, float x, float y) {
         super(id, x, y, 250.0, 3500, "TorreFuerte");
@@ -13,16 +13,16 @@ public class TorreFuerte extends Torre implements DañoDeTorre {
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = dañoBase * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        double damageEfectivo = damageBase * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override
     public void upgrade() {
         nivelMejora++;
         costoTorre += 125.0;
-        dañoBase += 40.0;
+        damageBase += 40.0;
         rango += 0.5;
         tiempoRecarga = Math.max(1500, tiempoRecarga - 300);
     }

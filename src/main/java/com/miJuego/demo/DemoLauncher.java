@@ -58,9 +58,12 @@ public final class DemoLauncher {
                     .body("Entre revistas viejas y polvo, algo llamó mi atención.", 
                           "Una reliquia pesada y ruidosa que, contra toda lógica, seguía conectada."));
                           
-            // Panel 4: Iniciando (Texto integrado en la imagen)
+            // Panel 4: Iniciando
             intro.addPage(new IntroPanel.IntroPage()
-                    .imageFromResource("/assets/intro/IntroPanel4.png"));
+                    .imageFromResource("/assets/intro/IntroPanel4.png")
+                    .body("Apreté el botón de encendido y el pesado zumbido del disco",
+                          "duro rompió el silencio, a medida que la pantalla cobraba",
+                          "vida lentamente."));
                     
             // Panel 5: Abriendo Word (Texto integrado en la imagen)
             intro.addPage(new IntroPanel.IntroPage()

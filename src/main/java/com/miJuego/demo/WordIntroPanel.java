@@ -79,14 +79,11 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
     };
     private int clippyPageIndex = 0;
 
-    // ─── Diálogo RPG (cinemática Pop-Ups) ────────────────────────────────
     private final String[][] rpgLines = {
         {"Clippy",   "¿Eh? Qué raro que otra aplicación esté usando este programa...", "sorprendido"},
         {"Clippy",   "Déjame verificar los procesos activos en segundo plano...", "pensando"},
         {"Clippy",   "¿buddy.exe? Qué raro... Nunca había visto ese archivo.", "sorprendido"},
         {"Clippy",   "¡Atención! Algo muy raro está sucediendo, mira eso en la pantalla...", "preocupado"},
-        {"Clippy",   "Esas ventanas emergentes van a destruir todo el documento.", "triste"},
-        {"Clippy",   "Ten, toma esto. Yo te guiaré sobre cómo enfrentar esto.", "feliz"},
         {"Sistema",  "¡Primera torre desbloqueada: Torre Antivirus!", "alerta"},
         {"Sistema",  "Usa el mouse para defender el documento del malware.", "alerta"}
     };
@@ -351,8 +348,16 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
         // SIN overlay oscuro — el documento sigue 100% visible
 
         // Posición de Clippy: esquina inferior derecha
-        int cx = w - CLIPPY_W - 20;
-        int cy = h - CLIPPY_H - 20;
+        int cx = w - CLIPPY_W - 45;
+        int cy = h - CLIPPY_H - 45;
+
+        // Dibujar recuadro de fondo gris suave detrás de Clippy
+        g2.setColor(new Color(245, 245, 245, 200)); // gris claro semi-transparente
+        g2.fillRoundRect(cx - 8, cy - 8, CLIPPY_W + 16, CLIPPY_H + 16, 10, 10);
+        g2.setColor(new Color(180, 180, 180, 220)); // borde gris
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(cx - 8, cy - 8, CLIPPY_W + 16, CLIPPY_H + 16, 10, 10);
+        g2.setStroke(new BasicStroke(1f));
 
         // Primero dibujar el globo (encima del doc, debajo de Clippy)
         drawOfficeBubble(g2, cx, cy, clippyBubblePages[clippyPageIndex]);
@@ -758,9 +763,17 @@ public class WordIntroPanel extends JPanel implements KeyListener, MouseListener
     }
 
     private void drawClippyControlScene(Graphics2D g2, int w, int h) {
-        int cx = w - CLIPPY_W - 20;
+        int cx = w - CLIPPY_W - 45;
         // Clippy flota sobre el diálogo del sistema para evitar solapamientos
-        int cy = h - CLIPPY_H - 220; 
+        int cy = h - CLIPPY_H - 245; 
+
+        // Dibujar recuadro de fondo gris suave detrás de Clippy
+        g2.setColor(new Color(245, 245, 245, 200)); // gris claro semi-transparente
+        g2.fillRoundRect(cx - 8, cy - 8, CLIPPY_W + 16, CLIPPY_H + 16, 10, 10);
+        g2.setColor(new Color(180, 180, 180, 220)); // borde gris
+        g2.setStroke(new BasicStroke(1.5f));
+        g2.drawRoundRect(cx - 8, cy - 8, CLIPPY_W + 16, CLIPPY_H + 16, 10, 10);
+        g2.setStroke(new BasicStroke(1f));
 
         // Mantener la caja de diálogo del sistema visible
         drawSystemDialogBox(g2, w, h, "Sistema", "Clippy tomó el control del sistema.", "alerta");

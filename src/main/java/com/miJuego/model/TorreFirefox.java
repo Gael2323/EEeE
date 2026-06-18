@@ -10,7 +10,7 @@ public class TorreFirefox extends TorreDeFuego {
         this.rango = 3.0;
         this.tiempoRecarga = 200; // Muy rápido (0.2s)
         this.resetCooldown();
-        // El daño base se maneja en Juego.java o a través del ataque
+        // El damage base se maneja en Juego.java o a través del ataque
     }
 
     @Override

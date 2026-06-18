@@ -23,7 +23,7 @@ public abstract class Enemigo implements Drawable {
     protected int nodosVisitados = 0;
 
     protected double rapidez = 2.0;  // Velocidad base
-    protected double dañoBase = 1.0; // Daño que inflige si llega al final
+    protected double damageBase = 1.0; // Damage que inflige si llega al final
 
     // Timers para efectos de estado
     protected float fuegoTimer = 0f;
@@ -54,8 +54,8 @@ public abstract class Enemigo implements Drawable {
     }
 
     // Métodos UML
-    public double dañorBase() {
-        return dañoBase;
+    public double damagerBase() {
+        return damageBase;
     }
 
     public abstract List<Enemigo> morir();
@@ -90,7 +90,7 @@ public abstract class Enemigo implements Drawable {
         return scoreGenerado;
     }
 
-    // Setters públicos para rapidez y dañoBase (usados desde sandbox)
+    // Setters públicos para rapidez y damageBase (usados desde sandbox)
     public void setRapidez(double rapidez) {
         this.rapidez = rapidez;
     }
@@ -99,8 +99,8 @@ public abstract class Enemigo implements Drawable {
         return rapidez;
     }
 
-    public void setDañoBase(double dañoBase) {
-        this.dañoBase = dañoBase;
+    public void setDamageBase(double damageBase) {
+        this.damageBase = damageBase;
     }
 
     // Helpers de efectos de estado (usados desde sandbox sin acceso a campos protected)
@@ -134,11 +134,11 @@ public abstract class Enemigo implements Drawable {
         this.paralizacionTimer = Math.max(this.paralizacionTimer, duracionSeconds);
     }
 
-    public void actualizarEfectosYDaño(float deltaSeconds) {
+    public void actualizarEfectosYDamage(float deltaSeconds) {
         // Actualizar fuego
         if (fuegoTimer > 0) {
             fuegoTimer -= deltaSeconds;
-            // Daño constante por segundo
+            // Damage constante por segundo
             setVida(GetVida() - fuegoDps * deltaSeconds);
         } else {
             fuegoDps = 0.0;

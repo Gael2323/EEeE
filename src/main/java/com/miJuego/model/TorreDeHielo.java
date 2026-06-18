@@ -2,11 +2,11 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public class TorreDeHielo extends Torre implements DañoDeTorre {
+public class TorreDeHielo extends Torre implements DamageDeTorre {
     private Enemigo objetivo;
     private double efectoDeRalentizar; // Factor de ralentización (ej: 0.5f = 50% de la velocidad normal)
     private double areaAGolpear;
-    private double dañoBase = 0.0; // En el enunciado dice "ralentiza, no daña"
+    private double damageBase = 0.0; // En el enunciado dice "ralentiza, no daña"
 
     public TorreDeHielo(String id, float x, float y) {
         super(id, x, y, 150.0, 1000, "TorreDeHielo");
@@ -17,13 +17,20 @@ public class TorreDeHielo extends Torre implements DañoDeTorre {
 
     @Override
     public double ataque(Enemigo enemigo) {
+        if (enemigo instanceof FakeFirewall) {
+            // Inmune a ralentizar y toma damage muy reducido
+            double damageEfectivo = (damageBase * (nivelMejora - 1)) * 0.1; // 90% de reducción
+            enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+            return damageEfectivo;
+        }
+
         // Aplica ralentización por un tiempo determinado (ej: 2.5 segundos)
         enemigo.aplicarRalentizar(efectoDeRalentizar, 2.5f);
         
-        // Hace daño básico (0.0 o muy bajo si se mejora)
-        double dañoEfectivo = dañoBase * (nivelMejora - 1);
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        // Hace damage básico (0.0 o muy bajo si se mejora)
+        double damageEfectivo = damageBase * (nivelMejora - 1);
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override
@@ -71,10 +78,22 @@ public class TorreDeHielo extends Torre implements DañoDeTorre {
         return java.util.Optional.of(getTowerSprite());
     }
 
+    protected Enemigo selectIceTarget(java.util.List<Enemigo> enemigosEnRango) {
+        for (Enemigo e : enemigosEnRango) {
+            if (e instanceof FakeFirewall) {
+                return e;
+            }
+        }
+        return null;
+    }
+
     @Override
     public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
         if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
-        Enemigo target = selectFirstEnemy(enemigosEnRango);
+        Enemigo target = selectIceTarget(enemigosEnRango);
+        if (target == null) {
+            target = selectFirstEnemy(enemigosEnRango);
+        }
         this.setObjetivo(target);
         this.resetCooldown();
         return java.util.List.of(new Bala(idGenerator.get(), this, target, 0.0));

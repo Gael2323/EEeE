@@ -3,8 +3,8 @@ package com.miJuego.model;
 import java.awt.Color;
 import java.util.Optional;
 
-public class TorreComun extends Torre implements DañoDeTorre {
-    private double dañoComun = 15.0;
+public class TorreComun extends Torre implements DamageDeTorre {
+    private double damageComun = 15.0;
 
     public TorreComun(String id, float x, float y) {
         super(id, x, y, 100.0, 500, "TorreComun");
@@ -13,10 +13,10 @@ public class TorreComun extends Torre implements DañoDeTorre {
 
     @Override
     public double ataque(Enemigo enemigo) {
-        // Hace daño básico al enemigo y lo devuelve
-        double dañoEfectivo = dañoComun * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        // Hace damage básico al enemigo y lo devuelve
+        double damageEfectivo = damageComun * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override

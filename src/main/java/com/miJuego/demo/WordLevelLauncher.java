@@ -24,7 +24,7 @@ public final class WordLevelLauncher {
         SwingUtilities.invokeLater(() -> {
             // ── Fondo personalizado del documento ────────────────────────
             BackgroundSettings bg = BackgroundSettings.getInstance();
-            bg.setImagePath("assets/ingame/word_document_bg.png");
+            bg.setImagePath("assets/ingame/nivel1_normal.png");
             bg.setFallbackColor(new java.awt.Color(245, 245, 240)); // blanco papel
 
             // ── Vista del juego ───────────────────────────────────────────

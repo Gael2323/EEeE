@@ -14,7 +14,7 @@ public class Juego {
     private final List<Bala> balas;
     
     // Configuración para el bucle y acciones
-    private int selectedTowerType = 1; // 1: Comun, 2: Area, 3: Cañon, 4: Fuerte, 5: Fuego, 6: Hielo, 7: Electrica
+    private int selectedTowerType = 1; // 1: Comun, 2: Area, 3: Canon, 4: Fuerte, 5: Fuego, 6: Hielo, 7: Electrica
     private static int idCounter = 0;
     
     // Lista de efectos visuales temporales (láseres, explosiones)
@@ -48,6 +48,13 @@ public class Juego {
     }
 
     public void restart(int levelNum) {
+        if (levelNum == 2) {
+            com.miJuego.model.CameraContext.setWorldBounds(64f, 48f);
+            com.miJuego.model.CameraContext.setTargetViewport(64f, 48f);
+        } else {
+            com.miJuego.model.CameraContext.setWorldBounds(32f, 24f);
+            com.miJuego.model.CameraContext.setTargetViewport(32f, 24f);
+        }
         int initialCoins = (levelNum >= 2) ? 400 : 150;
         if (levelNum == 99) initialCoins = 1000;
         this.jugador = new Jugador(0, 20, initialCoins); // 20 vidas, oro inicial según nivel
@@ -62,6 +69,13 @@ public class Juego {
     public void nextLevel() {
         int nextLvl = nivelActual.getNumeroNivel() + 1;
         if (nextLvl <= 5) {
+            if (nextLvl == 2) {
+                com.miJuego.model.CameraContext.setWorldBounds(64f, 48f);
+                com.miJuego.model.CameraContext.setTargetViewport(64f, 48f);
+            } else {
+                com.miJuego.model.CameraContext.setWorldBounds(32f, 24f);
+                com.miJuego.model.CameraContext.setTargetViewport(32f, 24f);
+            }
             this.nivelActual = new Nivel(nextLvl);
             this.balas.clear();
             this.efectosVisuales.clear();
@@ -92,7 +106,25 @@ public class Juego {
             Enemigo enemigo = enemyIterator.next();
             
             // Actualizar efectos de estado (fuego, hielo, parálisis)
-            enemigo.actualizarEfectosYDaño(deltaSeconds);
+            enemigo.actualizarEfectosYDamage(deltaSeconds);
+
+            // Si es Ares, procesar inteligencia y escudo
+            if (enemigo instanceof Ares ares) {
+                ares.updateAresState(deltaSeconds, torres);
+            }
+
+            // Si es FakeFirewall, actualizar inteligencia y limpieza
+            if (enemigo instanceof FakeFirewall fw) {
+                fw.updateFakeFirewallState(deltaSeconds, enemigos, torres);
+            }
+
+            // Si es CorruptedFolder, procesar Invocación
+            if (enemigo instanceof CorruptedFolder invocador) {
+                Enemigo invocado = invocador.updateInvocacion(deltaSeconds);
+                if (invocado != null) {
+                    nuevosEnemigos.add(invocado);
+                }
+            }
 
             // Si es Boss Peedy, procesar habilidades y movimiento libre (no sigue waypoints)
             if (enemigo instanceof BossPeedy peedy) {
@@ -155,7 +187,7 @@ public class Juego {
                 continue; // Omite el movimiento terrestre de waypoints
             }
 
-            // Verificar si murió por daño de fuego/efectos en este tick
+            // Verificar si murió por damage de fuego/efectos en este tick
             if (enemigo.isDead()) {
                 enemyIterator.remove();
                 handleEnemyDeath(enemigo, nuevosEnemigos);
@@ -163,34 +195,64 @@ public class Juego {
             }
 
             // Movimiento
-            WaypointNode targetNode = enemigo.getTargetNode();
-            if (targetNode != null) {
-                float dx = targetNode.x - enemigo.getX();
-                float dy = targetNode.y - enemigo.getY();
+            if (enemigo instanceof Ares ares && ares.getEstadoAres() == Ares.EstadoAres.APPROACHING && ares.getTargetMessenger() != null) {
+                TorreMessenger messenger = ares.getTargetMessenger();
+                float tx = messenger.getX() + 0.5f;
+                float ty = messenger.getY() + 0.5f;
+                float dx = tx - ares.getX();
+                float dy = ty - ares.getY();
                 double dist = Math.sqrt(dx * dx + dy * dy);
-                double speed = enemigo.getVelocidadActual();
+                double speed = ares.getVelocidadActual();
 
-                if (dist <= speed * deltaSeconds) {
-                    // Llegó al nodo
-                    enemigo.setPosicion(targetNode.x, targetNode.y);
-                    enemigo.avanzarNodo();
-                    
-                    if (targetNode.siguientes.isEmpty()) {
-                        enemyIterator.remove();
-                        jugador.decreaseHealth((int) enemigo.dañorBase());
-                        if (jugador.getHealth() <= 0) {
-                            estado = EstadoJuego.GAME_OVER;
+                if (dist > 0.001) {
+                    float newX = ares.getX() + (float) (dx / dist * speed * deltaSeconds);
+                    float newY = ares.getY() + (float) (dy / dist * speed * deltaSeconds);
+                    ares.setPosicion(newX, newY);
+                }
+            } else if (enemigo instanceof FakeFirewall fw && fw.getEstado() == FakeFirewall.EstadoFakeFirewall.APPROACHING && fw.getTargetIceTower() != null) {
+                TorreDeHielo ice = fw.getTargetIceTower();
+                float tx = ice.getX() + 0.5f;
+                float ty = ice.getY() + 0.5f;
+                float dx = tx - fw.getX();
+                float dy = ty - fw.getY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                double speed = fw.getVelocidadActual();
+
+                if (dist > 0.001) {
+                    float newX = fw.getX() + (float) (dx / dist * speed * deltaSeconds);
+                    float newY = fw.getY() + (float) (dy / dist * speed * deltaSeconds);
+                    fw.setPosicion(newX, newY);
+                }
+            } else {
+                WaypointNode targetNode = enemigo.getTargetNode();
+                if (targetNode != null) {
+                    float dx = targetNode.x - enemigo.getX();
+                    float dy = targetNode.y - enemigo.getY();
+                    double dist = Math.sqrt(dx * dx + dy * dy);
+                    double speed = enemigo.getVelocidadActual();
+
+                    if (dist <= speed * deltaSeconds) {
+                        // Llegó al nodo
+                        enemigo.setPosicion(targetNode.x, targetNode.y);
+                        enemigo.avanzarNodo();
+                        
+                        if (targetNode.siguientes.isEmpty()) {
+                            enemyIterator.remove();
+                            jugador.decreaseHealth((int) enemigo.damagerBase());
+                            if (jugador.getHealth() <= 0) {
+                                estado = EstadoJuego.GAME_OVER;
+                            }
+                        } else {
+                            // Siguiente rama (aleatoria si hay bifurcación)
+                            int randomIndex = (int) (Math.random() * targetNode.siguientes.size());
+                            enemigo.setTargetNode(targetNode.siguientes.get(randomIndex));
                         }
                     } else {
-                        // Siguiente rama (aleatoria si hay bifurcación)
-                        int randomIndex = (int) (Math.random() * targetNode.siguientes.size());
-                        enemigo.setTargetNode(targetNode.siguientes.get(randomIndex));
+                        // Avanzar hacia el nodo
+                        float newX = enemigo.getX() + (float) (dx / dist * speed * deltaSeconds);
+                        float newY = enemigo.getY() + (float) (dy / dist * speed * deltaSeconds);
+                        enemigo.setPosicion(newX, newY);
                     }
-                } else {
-                    // Avanzar hacia el nodo
-                    float newX = enemigo.getX() + (float) (dx / dist * speed * deltaSeconds);
-                    float newY = enemigo.getY() + (float) (dy / dist * speed * deltaSeconds);
-                    enemigo.setPosicion(newX, newY);
                 }
             }
         }
@@ -221,13 +283,13 @@ public class Juego {
                             double dx = e.getX() - bala.getX();
                             double dy = e.getY() - bala.getY();
                             if (dx * dx + dy * dy <= rangeSq) {
-                                e.setVida(e.GetVida() - (avast.isManualTargetingMode() ? 20.0 : 15.0) * avast.getNivelMejora()); // Daño splash. Mayor si es en modo zona
+                                e.setVida(e.GetVida() - (avast.isManualTargetingMode() ? 20.0 : 15.0) * avast.getNivelMejora()); // Damage splash. Mayor si es en modo zona
                             }
                         }
                     }
                 } else if (bala.getSourceTower() instanceof TorreDeFuego fuego) {
                     double areaSq = fuego.getAreaAGolpear() * fuego.getAreaAGolpear();
-                    double dps = fuego.getDañoPorQuemadura() * fuego.getNivelMejora();
+                    double dps = fuego.getDamagePorQuemadura() * fuego.getNivelMejora();
                     for (Enemigo e : enemigos) {
                         if (e != bala.getTarget()) {
                             double dx = e.getX() - bala.getX();
@@ -255,7 +317,7 @@ public class Juego {
                             }
                         }
                         if (nextTarget != null) {
-                            Bala newBala = new Bala("bala-" + (++idCounter), messenger, nextTarget, bala.getDaño() * 0.8, bala.getTarget().getX() + 0.3f, bala.getTarget().getY() + 0.3f);
+                            Bala newBala = new Bala("bala-" + (++idCounter), messenger, nextTarget, bala.getDamage() * 0.8, bala.getTarget().getX() + 0.3f, bala.getTarget().getY() + 0.3f);
                             newBala.setBounces(bounces + 1);
                             newBala.getHitEnemies().addAll(bala.getHitEnemies());
                             newBala.getHitEnemies().add(bala.getTarget());
@@ -464,6 +526,20 @@ public class Juego {
             case 7 -> 175;
             case 8 -> 220;
             default -> 100;
+        };
+    }
+
+    public double getTowerRange(int type) {
+        return switch (type) {
+            case 1 -> 3.5;
+            case 2 -> 3.5;
+            case 3 -> 3.0;
+            case 4 -> 5.0;
+            case 5 -> 5.0;
+            case 6 -> 3.0;
+            case 7 -> 3.5;
+            case 8 -> 3.5;
+            default -> 3.5;
         };
     }
 

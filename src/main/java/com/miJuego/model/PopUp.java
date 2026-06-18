@@ -26,7 +26,7 @@ public class PopUp extends Enemigo {
     public PopUp(String id, Variante variante) {
         super(id, "PopUp", 40.0, 10, 5);
         this.rapidez  = 2.5;
-        this.dañoBase = 1.0;
+        this.damageBase = 1.0;
         this.variante = variante;
         this.width = 1.15f;
         this.height = 1.15f;

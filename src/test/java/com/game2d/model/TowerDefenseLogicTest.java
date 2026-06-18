@@ -126,7 +126,16 @@ class TowerDefenseLogicTest {
         // El tipo de torre por defecto en model al iniciar es 1 (Común), y debe seguir siendo 1
         assertEquals(1, model.getJuego().getSelectedTowerType(), "La tecla 2 no debe equipar nada durante el tutorial.");
 
-        // Simulamos click/Space para avanzar a INTRO_2
+        // Simulamos click/Space para avanzar a CINEMATIC_WALK
+        model.dispatch(com.game2d.model.SimpleGameInput.keyPressed("Space"));
+        assertEquals(com.miJuego.model.ClippyTutorial.Estado.CINEMATIC_WALK, tutorial.getEstadoActual());
+
+        // Simulamos que el corruptor llegó al final
+        model.getJuego().getNivelActual().getEnemigosRestantes().clear();
+        model.update(0.1f);
+        assertEquals(com.miJuego.model.ClippyTutorial.Estado.CLIPPY_REACTION, tutorial.getEstadoActual());
+
+        // Simulamos Space para avanzar desde CLIPPY_REACTION. Como parent frame es null, pasa directo a INTRO_2
         model.dispatch(com.game2d.model.SimpleGameInput.keyPressed("Space"));
         assertEquals(com.miJuego.model.ClippyTutorial.Estado.INTRO_2, tutorial.getEstadoActual());
 
@@ -179,6 +188,7 @@ class TowerDefenseLogicTest {
         assertEquals(1, modelLvl1.getJuego().getSelectedTowerType(), "Torre 3 debería estar bloqueada en Nivel 1.");
 
         com.miJuego.model.TowerDefenseModel modelLvl2 = new com.miJuego.model.TowerDefenseModel(dummyView, 2);
+        modelLvl2.setLvl2IntroActive(false);
         modelLvl2.dispatch(com.game2d.model.SimpleGameInput.keyPressed("3"));
         assertEquals(1, modelLvl2.getJuego().getSelectedTowerType(), "Torre 3 debería estar bloqueada en Nivel 2.");
 
@@ -370,5 +380,43 @@ class TowerDefenseLogicTest {
         }
 
         assertEquals(com.miJuego.model.ClippyConfrontation.Estado.FINISHED, confrontation.getEstadoActual());
+    }
+
+    @Test
+    void testLevel2IntroCinematic() {
+        com.game2d.view.GameView dummyView = new com.game2d.view.GameView() {
+            @Override public void render(com.game2d.model.FrameSnapshot frame) {}
+            @Override public void setViewListener(com.game2d.view.ViewListener listener) {}
+            @Override public void setViewportSize(int w, int h) {}
+            @Override public void show() {}
+            @Override public void successMessage(String msg) {}
+            @Override public void errorMessage(String msg) {}
+        };
+        com.miJuego.model.TowerDefenseModel model = new com.miJuego.model.TowerDefenseModel(dummyView, 2);
+
+        // Al iniciar, la cinemática de Nivel 2 debe estar activa
+        assertTrue(model.isLvl2IntroActive());
+        assertEquals(1, model.getLvl2IntroStep());
+
+        // El spawn de enemigos debe estar pausado
+        assertTrue(model.getJuego().getNivelActual().isSpawnPaused());
+
+        // Avanzamos el primer diálogo (pasa a diálogo 2)
+        model.dispatch(com.game2d.model.SimpleGameInput.keyPressed("Space"));
+        assertTrue(model.isLvl2IntroActive());
+        assertEquals(2, model.getLvl2IntroStep());
+
+        // Avanzamos el segundo diálogo (pasa a diálogo 3)
+        model.dispatch(com.game2d.model.SimpleGameInput.keyPressed("Space"));
+        assertTrue(model.isLvl2IntroActive());
+        assertEquals(3, model.getLvl2IntroStep());
+
+        // Avanzamos el tercer diálogo (termina la cinemática)
+        model.dispatch(com.game2d.model.SimpleGameInput.keyPressed("Space"));
+        assertFalse(model.isLvl2IntroActive());
+        assertEquals(0, model.getLvl2IntroStep());
+
+        // Spawn de oleada sigue pausado esperando que el jugador presione ENTER/Iniciar
+        assertTrue(model.getJuego().getNivelActual().isSpawnPaused());
     }
 }

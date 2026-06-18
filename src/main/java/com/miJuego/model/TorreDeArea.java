@@ -2,10 +2,10 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public class TorreDeArea extends Torre implements DañoDeTorre {
+public class TorreDeArea extends Torre implements DamageDeTorre {
     private int cantidadEnemigosDañado;
     private int cantidadEnemigosDañadoMax;
-    private double dañoBase = 10.0;
+    private double damageBase = 10.0;
 
     public TorreDeArea(String id, float x, float y) {
         super(id, x, y, 150.0, 1500, "TorreDeArea");
@@ -16,9 +16,9 @@ public class TorreDeArea extends Torre implements DañoDeTorre {
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = dañoBase * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        double damageEfectivo = damageBase * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override

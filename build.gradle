@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'jacoco'
 }
 
 application {
@@ -43,5 +44,19 @@ test {
     reports {
         html.required.set(true) // HTML report
         junitXml.required.set(true) // XML report
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = false
+        csv.required = false
+        html.required = true
+        html.destination file("$buildDir/jacocoHtml")
     }
 }

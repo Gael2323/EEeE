@@ -12,19 +12,28 @@ public class TorreMessenger extends TorreElectrica {
         this.towertype = "TorreMessenger";
         this.costoTorre = 350.0;
         
-        // Atributos base reducidos (poco daño) pero con cadena infinita
+        // Atributos base reducidos (poco damage) pero con cadena infinita
         this.rango = 3.5;
-        // Ajustamos el daño base a un valor bajo
-        // La TorreElectrica hereda dañoComun, necesitamos sobreescribir o usar set
+        // Ajustamos el damage base a un valor bajo
+        // La TorreElectrica hereda damageComun, necesitamos sobreescribir o usar set
     }
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = 2.0 * nivelMejora; // Poco daño
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        // Pequeño parálisis
-        enemigo.aplicarParalizacion(0.2f);
-        return dañoEfectivo;
+        if (enemigo instanceof Ares ares) {
+            ares.activarEscudo();
+        }
+        double damageEfectivo = 2.0 * nivelMejora; // Poco damage
+        // Reducción drástica para Ares con escudo activo
+        if (enemigo instanceof Ares ares && ares.isShieldActive()) {
+            damageEfectivo *= 0.05; // 95% de reducción
+        }
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        // Pequeño parálisis (a menos que sea Ares con escudo activo)
+        if (!(enemigo instanceof Ares ares && ares.isShieldActive())) {
+            enemigo.aplicarParalizacion(0.2f);
+        }
+        return damageEfectivo;
     }
 
     @Override
@@ -82,7 +91,7 @@ public class TorreMessenger extends TorreElectrica {
     @Override
     public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
         if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
-        Enemigo target = selectFirstEnemy(enemigosEnRango);
+        Enemigo target = selectElectricTarget(enemigosEnRango);
         this.resetCooldown();
         return java.util.List.of(new Bala(idGenerator.get(), this, target, 15.0));
     }

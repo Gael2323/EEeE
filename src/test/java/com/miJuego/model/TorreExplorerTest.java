@@ -71,7 +71,7 @@ public class TorreExplorerTest {
 
         // Verificaciones
         // 1. Ambos enemigos deben estar en vida completa (40.0) dado que la torre congela pero no daña base
-        assertEquals(40.0, e1.GetVida(), "e1 no debió recibir daño");
-        assertEquals(40.0, e2.GetVida(), "e2 no debió recibir daño");
+        assertEquals(40.0, e1.GetVida(), "e1 no debió recibir damage");
+        assertEquals(40.0, e2.GetVida(), "e2 no debió recibir damage");
     }
 }

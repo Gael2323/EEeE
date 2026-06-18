@@ -2,29 +2,29 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public abstract class TorreDeFuego extends Torre implements DañoDeTorre {
+public abstract class TorreDeFuego extends Torre implements DamageDeTorre {
     private Enemigo objetivo;
-    private double dañoPorQuemadura;
+    private double damagePorQuemadura;
     private double areaAGolpear; // Splash/rango del efecto de fuego en área
-    private double dañoBase = 5.0;
+    private double damageBase = 5.0;
 
     public TorreDeFuego(String id, float x, float y) {
         super(id, x, y, 180.0, 1200, "TorreDeFuego");
-        this.dañoPorQuemadura = 10.0; // Daño por segundo del quemado
+        this.damagePorQuemadura = 10.0; // Damage por segundo del quemado
         this.areaAGolpear = 1.0;
         this.rango = 3.2;
     }
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = dañoBase * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
+        double damageEfectivo = damageBase * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
         
         // Aplicar efecto de fuego en el enemigo (ej. 3 segundos de duración)
-        double dañoDps = dañoPorQuemadura * nivelMejora;
-        enemigo.aplicarFuego(dañoDps, 3.0f);
+        double damageDps = damagePorQuemadura * nivelMejora;
+        enemigo.aplicarFuego(damageDps, 3.0f);
         
-        return dañoEfectivo;
+        return damageEfectivo;
     }
 
     @Override
@@ -32,7 +32,7 @@ public abstract class TorreDeFuego extends Torre implements DañoDeTorre {
         nivelMejora++;
         costoTorre += 90.0;
         rango += 0.3;
-        dañoPorQuemadura += 5.0;
+        damagePorQuemadura += 5.0;
         areaAGolpear += 0.1;
     }
 
@@ -44,12 +44,12 @@ public abstract class TorreDeFuego extends Torre implements DañoDeTorre {
         this.objetivo = objetivo;
     }
 
-    public double getDañoPorQuemadura() {
-        return dañoPorQuemadura;
+    public double getDamagePorQuemadura() {
+        return damagePorQuemadura;
     }
 
-    public void setDañoPorQuemadura(double dañoPorQuemadura) {
-        this.dañoPorQuemadura = dañoPorQuemadura;
+    public void setDamagePorQuemadura(double damagePorQuemadura) {
+        this.damagePorQuemadura = damagePorQuemadura;
     }
 
     public double getAreaAGolpear() {

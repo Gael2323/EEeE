@@ -74,7 +74,7 @@ public class DevCommandExecutor {
                 ║                                                      ║
                 ║  TORRES (sin costo)                                  ║
                 ║    place <tipo> <X> <Y>    — coloca torre            ║
-                ║       tipos: comun | area | cañon | fuerte |         ║
+                ║       tipos: comun | area | canon | fuerte |         ║
                 ║              fuego | hielo | electrica | mcafee      ║
                 ║    upgrade <X> <Y>         — mejora gratis           ║
                 ║    sell <X> <Y>            — vende torre             ║
@@ -225,7 +225,7 @@ public class DevCommandExecutor {
                 boss.setRapidez(0.7);
                 boss.setMonedasGeneradas(200.0);
                 boss.setScoreGenerado(150.0);
-                boss.setDañoBase(5.0);
+                boss.setDamageBase(5.0);
                 yield boss;
             }
             default -> null;
@@ -254,7 +254,7 @@ public class DevCommandExecutor {
         int towerType = switch (tipo) {
             case "comun"     -> 1;
             case "area"      -> 2;
-            case "cañon"     -> 3;
+            case "canon"     -> 3;
             case "fuerte"    -> 4;
             case "fuego"     -> 5;
             case "hielo"     -> 6;
@@ -262,7 +262,7 @@ public class DevCommandExecutor {
             case "mcafee"    -> 8;
             default          -> -1;
         };
-        if (towerType == -1) return "⚠  Tipo desconocido. Tipos: comun|area|cañon|fuerte|fuego|hielo|electrica|mcafee";
+        if (towerType == -1) return "⚠  Tipo desconocido. Tipos: comun|area|canon|fuerte|fuego|hielo|electrica|mcafee";
 
         synchronized (juego) {
             int oroAntes = juego.getJugador().getMoneda();

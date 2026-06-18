@@ -9,9 +9,9 @@ public class TorreInternetExplorer extends TorreDeHielo {
         this.costoTorre = 175.0; // un poco más cara o como quieras
         this.rango = 3.5;
         this.setEfectoDeRalentizar(0.4); // ralentiza bastante (60% más lento)
-        // Sobreescribimos el daño base, hace poco daño
-        // Como TorreDeHielo tiene un dañoBase privado que no expone un setter, 
-        // vamos a hacer override del ataque si es necesario, pero Juego.java es el que hace el daño usando Bala.
+        // Sobreescribimos el damage base, hace poco damage
+        // Como TorreDeHielo tiene un damageBase privado que no expone un setter, 
+        // vamos a hacer override del ataque si es necesario, pero Juego.java es el que hace el damage usando Bala.
     }
 
     @Override
@@ -34,21 +34,23 @@ public class TorreInternetExplorer extends TorreDeHielo {
     @Override
     public java.util.List<Bala> atacar(java.util.List<Enemigo> enemigosEnRango, java.util.function.Supplier<String> idGenerator) {
         if (enemigosEnRango.isEmpty()) return java.util.Collections.emptyList();
-        Enemigo target = null;
-        // Primero buscamos un enemigo que no esté ralentizado
-        for (Enemigo e : enemigosEnRango) {
-            if (!e.tieneRalentizar()) {
-                if (target == null || e.getNodosVisitados() > target.getNodosVisitados() || 
-                    (e.getNodosVisitados() == target.getNodosVisitados() && e.getTargetNode() != null && target.getTargetNode() != null &&
-                     Math.hypot(e.getTargetNode().x - e.getX(), e.getTargetNode().y - e.getY()) < 
-                     Math.hypot(target.getTargetNode().x - target.getX(), target.getTargetNode().y - target.getY()))) {
-                    target = e;
+        Enemigo target = selectIceTarget(enemigosEnRango);
+        if (target == null) {
+            // Primero buscamos un enemigo que no esté ralentizado
+            for (Enemigo e : enemigosEnRango) {
+                if (!e.tieneRalentizar()) {
+                    if (target == null || e.getNodosVisitados() > target.getNodosVisitados() || 
+                        (e.getNodosVisitados() == target.getNodosVisitados() && e.getTargetNode() != null && target.getTargetNode() != null &&
+                         Math.hypot(e.getTargetNode().x - e.getX(), e.getTargetNode().y - e.getY()) < 
+                         Math.hypot(target.getTargetNode().x - target.getX(), target.getTargetNode().y - target.getY()))) {
+                        target = e;
+                    }
                 }
             }
-        }
-        // Si todos están ralentizados, atacamos al primero
-        if (target == null) {
-            target = selectFirstEnemy(enemigosEnRango);
+            // Si todos están ralentizados, atacamos al primero
+            if (target == null) {
+                target = selectFirstEnemy(enemigosEnRango);
+            }
         }
         this.setObjetivo(target);
         this.resetCooldown();

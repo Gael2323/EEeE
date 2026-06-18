@@ -21,7 +21,7 @@ import java.util.Scanner;
  *   spawn boss                — spawnea el boss del nivel 5
  *   place comun X Y           — coloca TorreComun en (X,Y)
  *   place area X Y            — coloca TorreDeArea en (X,Y)
- *   place cañon X Y           — coloca Cañon en (X,Y)
+ *   place canon X Y           — coloca Canon en (X,Y)
  *   place fuerte X Y          — coloca TorreFuerte en (X,Y)
  *   place fuego X Y           — coloca TorreDeFuego en (X,Y)
  *   place hielo X Y           — coloca TorreDeHielo en (X,Y)
@@ -147,7 +147,7 @@ public class SandboxConsole {
                 boss.setRapidez(0.7);
                 boss.setMonedasGeneradas(200.0);
                 boss.setScoreGenerado(150.0);
-                boss.setDañoBase(5.0);
+                boss.setDamageBase(5.0);
                 System.out.println("💀 Boss spawneado (1000 HP, muy lento)");
                 yield boss;
             }
@@ -185,7 +185,7 @@ public class SandboxConsole {
         int towerType = switch (tipo) {
             case "comun"     -> 1;
             case "area"      -> 2;
-            case "cañon"     -> 3;
+            case "canon"     -> 3;
             case "fuerte"    -> 4;
             case "fuego"     -> 5;
             case "hielo"     -> 6;
@@ -196,7 +196,7 @@ public class SandboxConsole {
         if (towerType == -1) {
             juego.getJugador().setMoneda(oroAntes);
             System.out.println("⚠  Tipo de torre desconocido: " + tipo);
-            System.out.println("   Tipos: comun | area | cañon | fuerte | fuego | hielo | electrica");
+            System.out.println("   Tipos: comun | area | canon | fuerte | fuego | hielo | electrica");
             return;
         }
 
@@ -393,7 +393,7 @@ public class SandboxConsole {
         System.out.println();
         System.out.println("  TORRES");
         System.out.println("    place <tipo> X Y   — coloca torre sin costo");
-        System.out.println("                         tipos: comun | area | cañon | fuerte | fuego | hielo | electrica");
+        System.out.println("                         tipos: comun | area | canon | fuerte | fuego | hielo | electrica");
         System.out.println("    upgrade X Y        — mejora torre en (X,Y) sin costo");
         System.out.println("    sell X Y           — vende torre en (X,Y)");
         System.out.println();

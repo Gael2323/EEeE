@@ -67,17 +67,17 @@ public class TorreMessengerTest  {
                 }
             }
             
-            // Imprimimos la vida de cada enemigo paso a paso para ver el daño en directo
+            // Imprimimos la vida de cada enemigo paso a paso para ver el damage en directo
             System.out.printf("[Paso %d - %.2fs] Vida actual -> e1: %.2f | e2: %.2f | e3: %.2f | e4: %.2f%n",
                     i, i * 0.05f, e1.GetVida(), e2.GetVida(), e3.GetVida(), e4.GetVida());
         }
         System.out.println("=== FIN DE LA SIMULACIÓN ===");
 
         // Verificaciones
-        org.junit.jupiter.api.Assertions.assertTrue(e1.GetVida() < 40.0, "e1 debió haber recibido daño");
-        org.junit.jupiter.api.Assertions.assertTrue(e2.GetVida() < 40.0, "e2 debió haber recibido daño por rebote");
-        org.junit.jupiter.api.Assertions.assertTrue(e3.GetVida() < 40.0, "e3 debió haber recibido daño por rebote");
-        org.junit.jupiter.api.Assertions.assertTrue(e4.GetVida() < 40.0, "e4 debió haber recibido daño por rebote");
+        org.junit.jupiter.api.Assertions.assertTrue(e1.GetVida() < 40.0, "e1 debió haber recibido damage");
+        org.junit.jupiter.api.Assertions.assertTrue(e2.GetVida() < 40.0, "e2 debió haber recibido damage por rebote");
+        org.junit.jupiter.api.Assertions.assertTrue(e3.GetVida() < 40.0, "e3 debió haber recibido damage por rebote");
+        org.junit.jupiter.api.Assertions.assertTrue(e4.GetVida() < 40.0, "e4 debió haber recibido damage por rebote");
     }
 
 }

@@ -3,8 +3,8 @@ package com.miJuego.model;
 import java.awt.Color;
 import java.util.Optional;
 
-public class TorreMcAfee extends Torre implements DañoDeTorre {
-    private double dañoComun = 17.25;
+public class TorreMcAfee extends Torre implements DamageDeTorre {
+    private double damageComun = 17.25;
 
     public TorreMcAfee(String id, float x, float y) {
         super(id, x, y, 80.0, 500, "TorreMcAfee");
@@ -13,10 +13,10 @@ public class TorreMcAfee extends Torre implements DañoDeTorre {
 
     @Override
     public double ataque(Enemigo enemigo) {
-        // Hace daño básico al enemigo y lo devuelve (15% más que TorreComun)
-        double dañoEfectivo = dañoComun * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        // Hace damage básico al enemigo y lo devuelve (15% más que TorreComun)
+        double damageEfectivo = damageComun * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override

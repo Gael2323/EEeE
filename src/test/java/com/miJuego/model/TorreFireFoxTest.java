@@ -71,15 +71,15 @@ public class TorreFireFoxTest {
 
         // Verificaciones
         // 1. e1 debió recibir el impacto directo y estar bajo el efecto de fuego
-        org.junit.jupiter.api.Assertions.assertTrue(e1.GetVida() < 40.0, "e1 debió recibir daño");
+        org.junit.jupiter.api.Assertions.assertTrue(e1.GetVida() < 40.0, "e1 debió recibir damage");
         org.junit.jupiter.api.Assertions.assertTrue(e1.tieneFuego(), "e1 debió haber sido prendido fuego");
 
-        // 2. e2 debió recibir daño splash y estar prendido fuego por la explosión en área
-        org.junit.jupiter.api.Assertions.assertTrue(e2.GetVida() < 40.0, "e2 debió recibir daño de área");
+        // 2. e2 debió recibir damage splash y estar prendido fuego por la explosión en área
+        org.junit.jupiter.api.Assertions.assertTrue(e2.GetVida() < 40.0, "e2 debió recibir damage de área");
         org.junit.jupiter.api.Assertions.assertTrue(e2.tieneFuego(), "e2 debió haber sido quemado por el splash");
 
-        // 3. e3 está muy lejos, no debió recibir daño ni prenderse fuego
-        org.junit.jupiter.api.Assertions.assertEquals(40.0, e3.GetVida(), "e3 no debió recibir daño");
+        // 3. e3 está muy lejos, no debió recibir damage ni prenderse fuego
+        org.junit.jupiter.api.Assertions.assertEquals(40.0, e3.GetVida(), "e3 no debió recibir damage");
         org.junit.jupiter.api.Assertions.assertFalse(e3.tieneFuego(), "e3 no debió haberse quemado");
     }
 }

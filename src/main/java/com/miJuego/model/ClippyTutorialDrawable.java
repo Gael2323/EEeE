@@ -121,32 +121,36 @@ public class ClippyTutorialDrawable implements Drawable {
      * Dibuja a Clippy, su globo de diálogo Office Assistant y su minifondo protector en pantalla.
      */
     public void draw(Graphics2D g2, int cx, int cy, int cw, int ch) {
-        // 1. Minifondo Protector (Bandeja / Desktop Tray translúcida)
-        // Evita que Clippy se difumine con el Lorem Ipsum de fondo del documento de Word.
-        g2.setColor(new Color(245, 245, 235, 180)); // Crema suave de Word
-        g2.fillRoundRect(cx - 8, cy - 8, cw + 16, ch + 16, 12, 12);
-        g2.setColor(new Color(160, 170, 180, 120)); // Borde gris claro
-        g2.setStroke(new BasicStroke(1.2f));
-        g2.drawRoundRect(cx - 8, cy - 8, cw + 16, ch + 16, 12, 12);
+        boolean visible = !"invisible".equals(expression);
 
-        // Sombra de Clippy
-        g2.setColor(new Color(0, 0, 0, 45));
-        g2.fillOval(cx + cw / 4, cy + ch - 8, cw / 2, 6);
+        if (visible) {
+            // 1. Minifondo Protector (Bandeja / Desktop Tray translúcida)
+            // Evita que Clippy se difumine con el Lorem Ipsum de fondo del documento de Word.
+            g2.setColor(new Color(245, 245, 235, 180)); // Crema suave de Word
+            g2.fillRoundRect(cx - 8, cy - 8, cw + 16, ch + 16, 12, 12);
+            g2.setColor(new Color(160, 170, 180, 120)); // Borde gris claro
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.drawRoundRect(cx - 8, cy - 8, cw + 16, ch + 16, 12, 12);
 
-        // 2. Sprite de Clippy
-        BufferedImage currentSprite = clippyExpressions.get(expression);
-        if (currentSprite == null) {
-            currentSprite = defaultClippy;
-        }
+            // Sombra de Clippy
+            g2.setColor(new Color(0, 0, 0, 45));
+            g2.fillOval(cx + cw / 4, cy + ch - 8, cw / 2, 6);
 
-        if (currentSprite != null) {
-            g2.drawImage(currentSprite, cx, cy, cw, ch, null);
-        } else {
-            // Fallback vectorial de clip si no se cargan las texturas
-            g2.setColor(new Color(220, 180, 0));
-            g2.setStroke(new BasicStroke(3f));
-            g2.drawArc(cx + cw / 4, cy + 10, cw / 2, ch / 2, 0, 270);
-            g2.setStroke(new BasicStroke(1f));
+            // 2. Sprite de Clippy
+            BufferedImage currentSprite = clippyExpressions.get(expression);
+            if (currentSprite == null) {
+                currentSprite = defaultClippy;
+            }
+
+            if (currentSprite != null) {
+                g2.drawImage(currentSprite, cx, cy, cw, ch, null);
+            } else {
+                // Fallback vectorial de clip si no se cargan las texturas
+                g2.setColor(new Color(220, 180, 0));
+                g2.setStroke(new BasicStroke(3f));
+                g2.drawArc(cx + cw / 4, cy + 10, cw / 2, ch / 2, 0, 270);
+                g2.setStroke(new BasicStroke(1f));
+            }
         }
 
         // 3. Globo de Diálogo

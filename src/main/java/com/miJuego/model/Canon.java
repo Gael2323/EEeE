@@ -2,22 +2,22 @@ package com.miJuego.model;
 
 import java.awt.Color;
 
-public class Cañon extends Torre implements DañoDeTorre {
+public class Canon extends Torre implements DamageDeTorre {
     private Enemigo objetivo;
     private double areaAGolpear; // Representa el radio de explosión (splash radius)
-    private double dañoBase = 25.0;
+    private double damageBase = 25.0;
 
-    public Cañon(String id, float x, float y) {
-        super(id, x, y, 200.0, 2000, "Cañon");
+    public Canon(String id, float x, float y) {
+        super(id, x, y, 200.0, 2000, "Canon");
         this.areaAGolpear = 1.5;
         this.rango = 4.0;
     }
 
     @Override
     public double ataque(Enemigo enemigo) {
-        double dañoEfectivo = dañoBase * nivelMejora;
-        enemigo.setVida(enemigo.GetVida() - dañoEfectivo);
-        return dañoEfectivo;
+        double damageEfectivo = damageBase * nivelMejora;
+        enemigo.setVida(enemigo.GetVida() - damageEfectivo);
+        return damageEfectivo;
     }
 
     @Override
@@ -26,7 +26,7 @@ public class Cañon extends Torre implements DañoDeTorre {
         costoTorre += 100.0;
         rango += 0.2;
         areaAGolpear += 0.2;
-        dañoBase += 10.0;
+        damageBase += 10.0;
     }
 
     public Enemigo getObjetivo() {

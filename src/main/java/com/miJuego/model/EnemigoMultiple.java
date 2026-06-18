@@ -10,7 +10,7 @@ public class EnemigoMultiple extends Enemigo {
     public EnemigoMultiple(String id) {
         super(id, "EnemigoMultiple", 150.0, 30, 20);
         this.rapidez = 1.4; // Más lento, pero con más vida y se divide
-        this.dañoBase = 2.0; // Hace más daño si llega a la base
+        this.damageBase = 2.0; // Hace más damage si llega a la base
         this.width = 1.4f;
         this.height = 1.4f;
     }

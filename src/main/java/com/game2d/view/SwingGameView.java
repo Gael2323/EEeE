@@ -686,7 +686,7 @@ public final class SwingGameView implements GameView {
 
         // ── B. Actualizar Módulo Oleada ──
         int totalEnemigos = juego.getNivelActual().getEnemigosRestantesCount();
-        waveLabel.setText("Oleada: " + levelNum + " / 5");
+        waveLabel.setText("Oleada: " + juego.getNivelActual().getOleadaActual() + " / " + juego.getNivelActual().getMaximaOleadas());
         waveEnemiesLabel.setText("Enemigos: " + totalEnemigos);
 
         int maxEnemigos = juego.getNivelActual().getEnemigosRestantesCount(); // fallback
@@ -704,9 +704,23 @@ public final class SwingGameView implements GameView {
         } catch (Exception ignored) {}
 
         // ── C. Actualizar Barra de Tareas (Bottom) ──
-        xpProgressBar.setMaximum(1000);
-        xpProgressBar.setValue(Math.min(1000, score));
-        xpProgressBar.setString("Nivel " + levelNum + "  ·  Score: " + score + " XP  ·  Oro: " + gold);
+        int playerLevel = 1;
+        int levelLimit = 250;
+        int cumulativeXp = 0;
+        while (score >= cumulativeXp + levelLimit && levelLimit > 0) {
+            cumulativeXp += levelLimit;
+            playerLevel++;
+            if (levelLimit < 1_000_000_000) {
+                levelLimit *= 2;
+            } else {
+                break;
+            }
+        }
+        int xpInCurrentLevel = score - cumulativeXp;
+
+        xpProgressBar.setMaximum(levelLimit);
+        xpProgressBar.setValue(xpInCurrentLevel);
+        xpProgressBar.setString("Nivel " + playerLevel + "  ·  Score: " + score + " XP  ·  Oro: " + gold);
 
         // ── D. Actualizar Módulo de Información (Right) ──
         int lastX = snapshot.getLastClickedX();
@@ -749,7 +763,7 @@ public final class SwingGameView implements GameView {
 
             String statText = String.format(
                 "<html><table style='font-size: 8px; font-family: Tahoma; color: #404040;'>" +
-                "<tr><td><b>Daño:</b></td><td>&nbsp;%.1f</td></tr>" +
+                "<tr><td><b>Damage:</b></td><td>&nbsp;%.1f</td></tr>" +
                 "<tr><td><b>Rango:</b></td><td>&nbsp;%.1f</td></tr>" +
                 "<tr><td><b>Recarga:</b></td><td>&nbsp;%.2fs</td></tr>" +
                 "<tr><td><b>Prioridad:</b></td><td>&nbsp;Cercano</td></tr>" +
@@ -799,7 +813,7 @@ public final class SwingGameView implements GameView {
         if (t instanceof TorreElectrica) return 12.0 * lvl;
         if (t instanceof TorreFuerte) return 35.0 * lvl;
         if (t instanceof TorreMcAfee) return 18.0 * lvl;
-        if (t.getClass().getSimpleName().contains("Cañon")) return 25.0 * lvl;
+        if (t.getClass().getSimpleName().contains("Canon")) return 25.0 * lvl;
         return 10.0 * lvl;
     }
 
@@ -2054,406 +2068,65 @@ public final class SwingGameView implements GameView {
 
     private static class AdwareResolutionDialog extends JDialog {
         private final Runnable onCloseCallback;
-        private Image relicImage = null;
+        private java.awt.image.BufferedImage img = null;
 
         public AdwareResolutionDialog(Frame parent, Runnable onCloseCallback) {
             super(parent, true);
             this.onCloseCallback = onCloseCallback;
             setUndecorated(true);
-            setSize(760, 530);
+
+            // Cargar imagen
+            try {
+                java.net.URL imgUrl = getClass().getClassLoader().getResource("assets/ingame/YouWin_TorreMcAffe.png");
+                if (imgUrl != null) {
+                    img = javax.imageio.ImageIO.read(imgUrl);
+                }
+            } catch (Exception e) {
+                System.err.println("No se pudo cargar la imagen del popup McAfee: " + e.getMessage());
+            }
+
+            int w = 560;
+            int h = 420;
+            if (img != null) {
+                w = img.getWidth() > 0 ? img.getWidth() : 560;
+                h = img.getHeight() > 0 ? img.getHeight() : 420;
+                if (w > 800) {
+                    double aspect = (double) h / w;
+                    w = 800;
+                    h = (int) (w * aspect);
+                }
+            }
+            setSize(w, h);
             setLocationRelativeTo(parent);
 
-            try {
-                java.net.URL imgUrl = getClass().getClassLoader().getResource("assets/word/clippy_mcafee_relic.png");
-                if (imgUrl != null) {
-                    relicImage = javax.imageio.ImageIO.read(imgUrl);
-                }
-            } catch (Exception ignored) {}
-
-            JPanel mainPanel = new JPanel() {
+            final java.awt.image.BufferedImage finalImg = img;
+            JPanel panel = new JPanel(null) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     super.paintComponent(g);
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                    // Fondo crema-pergamino
-                    g2.setColor(new Color(248, 245, 230));
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-
-                    // Borde exterior doble dorado
-                    g2.setStroke(new BasicStroke(4f));
-                    g2.setColor(new Color(184, 134, 11)); // Oro viejo
-                    g2.drawRect(2, 2, getWidth() - 4, getHeight() - 4);
-                    
-                    g2.setStroke(new BasicStroke(1.5f));
-                    g2.setColor(new Color(218, 165, 32)); // Oro brillante
-                    g2.drawRect(8, 8, getWidth() - 16, getHeight() - 16);
-
-                    // Barra superior azul royal
-                    int hbH = 75;
-                    g2.setColor(new Color(10, 80, 205));
-                    g2.fillRect(10, 10, getWidth() - 20, hbH);
-                    g2.setColor(new Color(218, 165, 32));
-                    g2.setStroke(new BasicStroke(2f));
-                    g2.drawRect(10, 10, getWidth() - 20, hbH);
-
-                    // Adornos de esquina dorados
-                    g2.setColor(new Color(218, 165, 32));
-                    int cs = 14;
-                    // Sup Izq
-                    g2.fillOval(8, 8, cs, cs);
-                    // Sup Der
-                    g2.fillOval(getWidth() - 8 - cs, 8, cs, cs);
-                    // Inf Izq
-                    g2.fillOval(8, getHeight() - 8 - cs, cs, cs);
-                    // Inf Der
-                    g2.fillOval(getWidth() - 8 - cs, getHeight() - 8 - cs, cs, cs);
-
-                    // Dibujar escudo Word W arriba en el centro (solapa el borde)
-                    int sx = getWidth() / 2;
-                    int sy = 10;
-                    // Wreaths/Hojas alrededor del escudo
-                    g2.setColor(new Color(218, 165, 32));
-                    g2.setStroke(new BasicStroke(2f));
-                    g2.drawArc(sx - 35, sy + 5, 20, 25, 120, 240);
-                    g2.drawArc(sx + 15, sy + 5, 20, 25, 180, 240);
-
-                    // Escudo
-                    int[] shieldX = { sx, sx - 16, sx - 16, sx, sx + 16, sx + 16 };
-                    int[] shieldY = { sy - 8, sy + 4, sy + 22, sy + 32, sy + 22, sy + 4 };
-                    g2.fillPolygon(shieldX, shieldY, 6);
-                    g2.setColor(new Color(10, 80, 205));
-                    int[] shieldInnerX = { sx, sx - 12, sx - 12, sx, sx + 12, sx + 12 };
-                    int[] shieldInnerY = { sy - 4, sy + 6, sy + 20, sy + 28, sy + 20, sy + 6 };
-                    g2.fillPolygon(shieldInnerX, shieldInnerY, 6);
-                    g2.setColor(Color.WHITE);
-                    g2.setFont(new Font("Tahoma", Font.BOLD, 14));
-                    g2.drawString("W", sx - 6, sy + 18);
-
-                    g2.dispose();
-                }
-            };
-            mainPanel.setLayout(null);
-
-            // 1. TÍTULO EN LA BARRA AZUL
-            JLabel headerTitle = new JLabel("¡Te has ganado un premio!", JLabel.CENTER);
-            headerTitle.setFont(new Font("Tahoma", Font.BOLD, 26));
-            headerTitle.setForeground(Color.WHITE);
-            headerTitle.setBounds(50, 42, 660, 35);
-            mainPanel.add(headerTitle);
-
-            // 2. SUBTÍTULO
-            JLabel headerSubtitle = new JLabel("* * *  Has desbloqueado una reliquia especial.  * * *", JLabel.CENTER);
-            headerSubtitle.setFont(new Font("Tahoma", Font.BOLD, 12));
-            headerSubtitle.setForeground(new Color(100, 100, 120));
-            headerSubtitle.setBounds(50, 95, 660, 20);
-            mainPanel.add(headerSubtitle);
-
-            // 3. ILUSTRACIÓN CENTRAL (CON MARCO, COLUMNAS, PEDESTAL, CLIPPY CON CAPA Y ESCUDO GLORIOSO)
-            JPanel illustrationPanel = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                    if (relicImage != null) {
-                        g2.drawImage(relicImage, 0, 0, getWidth(), getHeight(), null);
-                        g2.setStroke(new BasicStroke(1.5f));
-                        g2.setColor(new Color(200, 160, 70));
-                        g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
-                        g2.dispose();
-                        return;
-                    }
-
-                    // Fondo degradado pergamino suave interno
-                    GradientPaint gp = new GradientPaint(0, 0, new Color(255, 253, 245), 0, getHeight(), new Color(240, 235, 215));
-                    g2.setPaint(gp);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-
-                    // Marco dorado fino
-                    g2.setStroke(new BasicStroke(1.5f));
-                    g2.setColor(new Color(200, 160, 70));
-                    g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
-
-                    int cx = getWidth() / 2;
-                    int cy = getHeight() / 2 + 10;
-
-                    // A. Dibujar destello/brillo radial detrás de la reliquia
-                    float[] dist = { 0.0f, 0.6f, 1.0f };
-                    Color[] colors = { new Color(255, 225, 100, 200), new Color(255, 215, 0, 80), new Color(0, 0, 0, 0) };
-                    RadialGradientPaint rgp = new RadialGradientPaint(cx, cy - 35, 120, dist, colors);
-                    g2.setPaint(rgp);
-                    g2.fillOval(cx - 120, cy - 155, 240, 240);
-                    
-                    // Rayos de luz radiales
-                    g2.setColor(new Color(255, 223, 0, 120));
-                    g2.setStroke(new BasicStroke(1.2f));
-                    for (int i = 0; i < 16; i++) {
-                        double angle = i * Math.PI / 8;
-                        int rx1 = cx + (int) (18 * Math.cos(angle));
-                        int ry1 = (cy - 35) + (int) (18 * Math.sin(angle));
-                        int rx2 = cx + (int) (110 * Math.cos(angle));
-                        int ry2 = (cy - 35) + (int) (110 * Math.sin(angle));
-                        g2.drawLine(rx1, ry1, rx2, ry2);
-                    }
-
-                    // B. Columnas griegas / de piedra a los lados
-                    drawStoneColumn(g2, 20, 20, 40, getHeight() - 40);
-                    drawStoneColumn(g2, getWidth() - 60, 20, 40, getHeight() - 40);
-
-                    // C. Pedestal de piedra en el centro
-                    g2.setColor(new Color(175, 175, 185)); // Piedra
-                    g2.fillOval(cx - 55, cy + 25, 110, 22);
-                    g2.setColor(new Color(135, 135, 145));
-                    g2.fillOval(cx - 45, cy + 18, 90, 18);
-                    g2.setColor(new Color(200, 200, 210));
-                    g2.fillOval(cx - 35, cy + 10, 70, 14);
-
-                    // D. Clippy feliz con capa azul y corona/banda de sabio
-                    int charX = cx;
-                    int charY = cy - 2;
-
-                    // Capa azul
-                    g2.setColor(new Color(30, 80, 200));
-                    java.awt.geom.Path2D cape = new java.awt.geom.Path2D.Double();
-                    cape.moveTo(charX - 10, charY + 5);
-                    cape.quadTo(charX - 35, charY + 15, charX - 30, charY + 32);
-                    cape.lineTo(charX + 30, charY + 32);
-                    cape.quadTo(charX + 35, charY + 15, charX + 10, charY + 5);
-                    cape.closePath();
-                    g2.fill(cape);
-
-                    // Cuerpo de clip metálico (Clippy)
-                    g2.setColor(new Color(150, 150, 160));
-                    g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                    // Dibujar bucle exterior del clip
-                    g2.drawArc(charX - 10, charY - 20, 20, 20, 0, 180); // Cabeza
-                    g2.drawLine(charX - 10, charY - 10, charX - 10, charY + 20); // Cuerpo izq
-                    g2.drawArc(charX - 10, charY + 10, 20, 18, 180, 180); // Bucle bajo
-                    g2.drawLine(charX + 10, charY + 19, charX + 10, charY - 8); // Cuerpo der
-                    g2.drawArc(charX - 4, charY - 14, 14, 12, 0, 180); // Bucle interno superior
-                    g2.drawLine(charX - 4, charY - 8, charX - 4, charY + 10);
-                    g2.drawArc(charX - 4, charY + 5, 8, 10, 180, 180);
-
-                    // Ojos googly
-                    g2.setColor(Color.WHITE);
-                    g2.fillOval(charX - 7, charY - 18, 7, 9);
-                    g2.fillOval(charX, charY - 18, 7, 9);
-                    g2.setColor(Color.BLACK);
-                    g2.fillOval(charX - 5, charY - 14, 3, 3);
-                    g2.fillOval(charX + 2, charY - 14, 3, 3);
-
-                    // Cejas
-                    g2.setStroke(new BasicStroke(1.2f));
-                    g2.drawLine(charX - 7, charY - 20, charX - 2, charY - 19);
-                    g2.drawLine(charX + 1, charY - 19, charX + 6, charY - 20);
-
-                    // Banda de la cabeza / corona de sabio dorada
-                    g2.setColor(new Color(218, 165, 32));
-                    g2.setStroke(new BasicStroke(2.2f));
-                    g2.drawArc(charX - 11, charY - 19, 22, 10, 20, 140);
-                    g2.fillOval(charX - 12, charY - 17, 4, 4);
-                    g2.fillOval(charX + 8, charY - 17, 4, 4);
-
-                    // E. Brazos levantando el escudo
-                    g2.setColor(new Color(150, 150, 160));
-                    g2.setStroke(new BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                    // Brazo Izq
-                    g2.drawLine(charX - 8, charY + 6, charX - 16, charY - 20);
-                    // Brazo Der
-                    g2.drawLine(charX + 8, charY + 6, charX + 16, charY - 20);
-
-                    // F. Escudo de McAfee levantado gloriosamente
-                    int shW = 55;
-                    int shH = 68;
-                    int shX = cx;
-                    int shY = cy - 40;
-
-                    // Dibujar el escudo dorado de McAfee
-                    java.awt.geom.Path2D shieldOuter = new java.awt.geom.Path2D.Double();
-                    shieldOuter.moveTo(shX, shY - shH/2);
-                    shieldOuter.quadTo(shX + shW/2, shY - shH/2 + 4, shX + shW/2 - 3, shY + shH/6);
-                    shieldOuter.quadTo(shX + shW/2 - 9, shY + shH/2 - 6, shX, shY + shH/2);
-                    shieldOuter.quadTo(shX - shW/2 + 9, shY + shH/2 - 6, shX - shW/2 + 3, shY + shH/6);
-                    shieldOuter.quadTo(shX - shW/2, shY - shH/2 + 4, shX, shY - shH/2);
-                    shieldOuter.closePath();
-
-                    g2.setPaint(new GradientPaint(shX - shW/2, shY - shH/2, new Color(255, 215, 0), shX + shW/2, shY + shH/2, new Color(184, 134, 11)));
-                    g2.fill(shieldOuter);
-
-                    // Escudo interior rojo
-                    int isW = 43;
-                    int isH = 55;
-                    java.awt.geom.Path2D shieldInner = new java.awt.geom.Path2D.Double();
-                    shieldInner.moveTo(shX, shY - isH/2);
-                    shieldInner.quadTo(shX + isW/2, shY - isH/2 + 3, shX + isW/2 - 2, shY + isH/6);
-                    shieldInner.quadTo(shX + isW/2 - 7, shY + isH/2 - 5, shX, shY + isH/2);
-                    shieldInner.quadTo(shX - isW/2 + 7, shY + isH/2 - 5, shX - isW/2 + 2, shY + isH/6);
-                    shieldInner.quadTo(shX - isW/2, shY - isH/2 + 3, shX, shY - isH/2);
-                    shieldInner.closePath();
-
-                    g2.setPaint(new GradientPaint(shX - isW/2, shY - isH/2, new Color(230, 20, 20), shX + isW/2, shY + isH/2, new Color(120, 0, 0)));
-                    g2.fill(shieldInner);
-
-                    // Letra M en el escudo
-                    g2.setColor(Color.WHITE);
-                    g2.setStroke(new BasicStroke(3.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                    int my = shY - 11;
-                    int mh = 22;
-                    int mw = 22;
-                    g2.drawLine(shX - mw/2, my + mh, shX - mw/2, my);
-                    g2.drawLine(shX - mw/2, my, shX, my + mh/2 + 2);
-                    g2.drawLine(shX, my + mh/2 + 2, shX + mw/2, my);
-                    g2.drawLine(shX + mw/2, my, shX + mw/2, my + mh);
-
-                    g2.dispose();
-                }
-
-                private void drawStoneColumn(Graphics2D g2, int x, int y, int w, int h) {
-                    g2.setColor(new Color(190, 190, 195)); // Gris piedra claro
-                    g2.fillRect(x, y + 15, w, h - 30); // Fuste
-
-                    // Líneas verticales de relieve
-                    g2.setColor(new Color(150, 150, 155));
-                    g2.setStroke(new BasicStroke(1f));
-                    for (int lx = x + 6; lx < x + w; lx += 8) {
-                        g2.drawLine(lx, y + 15, lx, y + h - 15);
-                    }
-
-                    // Capitel y Base (Molduras)
-                    g2.setColor(new Color(140, 140, 145)); // Gris piedra oscuro
-                    g2.fillRect(x - 6, y, w + 12, 15); // Capitel
-                    g2.fillRect(x - 6, y + h - 15, w + 12, 15); // Base
-
-                    g2.setColor(new Color(210, 210, 215));
-                    g2.setStroke(new BasicStroke(1.2f));
-                    g2.drawRect(x - 6, y, w + 12, 15);
-                    g2.drawRect(x - 6, y + h - 15, w + 12, 15);
-                    
-                    // Colgar pequeños estandartes azules "W"
-                    g2.setColor(new Color(30, 80, 200, 180));
-                    int[] flagX = { x + 6, x + 6, x + w - 6, x + w - 6, x + w/2 };
-                    int[] flagY = { y + 30, y + 110, y + 110, y + 30, y + 95 };
-                    g2.fillPolygon(flagX, flagY, 5);
-                    g2.setColor(Color.WHITE);
-                    g2.setFont(new Font("Tahoma", Font.BOLD, 10));
-                    g2.drawString("W", x + w/2 - 4, y + 55);
-                }
-            };
-            illustrationPanel.setBounds(100, 125, 560, 255);
-            mainPanel.add(illustrationPanel);
-
-            // 4. CINTA/BANNER DE LA RELIQUIA
-            JPanel bannerRibbon = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-                    // Cinta dorada
-                    g2.setPaint(new GradientPaint(0, 0, new Color(255, 239, 150), 0, getHeight(), new Color(218, 165, 32)));
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
-
-                    // Borde dorado
-                    g2.setColor(new Color(184, 134, 11));
-                    g2.setStroke(new BasicStroke(1.5f));
-                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
-
-                    g2.dispose();
-                }
-            };
-            bannerRibbon.setLayout(new BorderLayout());
-            bannerRibbon.setBounds(200, 392, 360, 26);
-            
-            JLabel reliquiaLbl = new JLabel("Reliquia de Seguridad: Antivirus McAfee", JLabel.CENTER);
-            reliquiaLbl.setFont(new Font("Tahoma", Font.BOLD, 12));
-            reliquiaLbl.setForeground(new Color(139, 69, 19)); // Marrón café
-            bannerRibbon.add(reliquiaLbl, BorderLayout.CENTER);
-            mainPanel.add(bannerRibbon);
-
-            // 5. TEXTO DE DESCRIPCIÓN
-            JLabel descLabel = new JLabel("<html><center>Un antivirus legendario se ha instalado de forma automática en tu sistema.<br>Te servirá para combatir las amenazas cibernéticas a pesar de no haber aceptado la oferta.</center></html>", JLabel.CENTER);
-            descLabel.setFont(new Font("Tahoma", Font.PLAIN, 12));
-            descLabel.setForeground(new Color(40, 50, 90));
-            descLabel.setBounds(50, 424, 660, 40);
-            mainPanel.add(descLabel);
-
-            // 6. BOTONES "Aceptar" y "Continuar"
-            JButton acceptBtn = new JButton("Aceptar") {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    if (getModel().isPressed()) {
-                        g2.setColor(new Color(220, 220, 220));
-                    } else if (getModel().isRollover()) {
-                        g2.setColor(new Color(250, 250, 255));
+                    if (finalImg != null) {
+                        g.drawImage(finalImg, 0, 0, getWidth(), getHeight(), null);
                     } else {
-                        g2.setColor(new Color(235, 235, 240));
+                        g.setColor(new java.awt.Color(40, 40, 40));
+                        g.fillRect(0, 0, getWidth(), getHeight());
+                        g.setColor(java.awt.Color.WHITE);
+                        g.setFont(new java.awt.Font("Tahoma", java.awt.Font.BOLD, 18));
+                        g.drawString("¡NUEVA TORRE DESBLOQUEADA!", 50, 100);
+                        g.setFont(new java.awt.Font("Tahoma", java.awt.Font.PLAIN, 14));
+                        g.drawString("Torre McAfee", 50, 140);
                     }
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
-                    
-                    g2.setColor(new Color(10, 80, 205)); // Borde azul
-                    g2.setStroke(new BasicStroke(1.8f));
-                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
-                    
-                    g2.dispose();
-                    super.paintComponent(g);
                 }
             };
-            acceptBtn.setFont(new Font("Tahoma", Font.BOLD, 14));
-            acceptBtn.setForeground(new Color(10, 80, 205));
-            acceptBtn.setContentAreaFilled(false);
-            acceptBtn.setFocusPainted(false);
-            acceptBtn.setBorder(BorderFactory.createEmptyBorder());
-            acceptBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            acceptBtn.setBounds(240, 476, 130, 36);
-            acceptBtn.addActionListener(e -> closeDialog());
-            mainPanel.add(acceptBtn);
 
-            JButton continueBtn = new JButton("Continuar") {
+            // Cerrar al hacer clic en cualquier parte de la ventana
+            panel.addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    if (getModel().isPressed()) {
-                        g2.setColor(new Color(180, 180, 180));
-                    } else if (getModel().isRollover()) {
-                        g2.setColor(new Color(225, 225, 225));
-                    } else {
-                        g2.setColor(new Color(210, 210, 210));
-                    }
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
-                    
-                    g2.setColor(new Color(140, 140, 145)); // Borde gris
-                    g2.setStroke(new BasicStroke(1.5f));
-                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 6, 6);
-                    
-                    g2.dispose();
-                    super.paintComponent(g);
-                }
-            };
-            continueBtn.setFont(new Font("Tahoma", Font.BOLD, 14));
-            continueBtn.setForeground(new Color(80, 80, 90));
-            continueBtn.setContentAreaFilled(false);
-            continueBtn.setFocusPainted(false);
-            continueBtn.setBorder(BorderFactory.createEmptyBorder());
-            continueBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            continueBtn.setBounds(390, 476, 130, 36);
-            continueBtn.addActionListener(e -> closeDialog());
-            mainPanel.add(continueBtn);
-
-            addWindowListener(new java.awt.event.WindowAdapter() {
-                @Override
-                public void windowClosing(java.awt.event.WindowEvent e) {
+                public void mousePressed(java.awt.event.MouseEvent e) {
                     closeDialog();
                 }
             });
 
-            setContentPane(mainPanel);
+            setContentPane(panel);
         }
 
         private void closeDialog() {

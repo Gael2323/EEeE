@@ -35,7 +35,7 @@ public class BossPeedy extends Enemigo {
         // Stats masivas: 3000 de vida
         super(id, "Boss Peedy", 3000.0, 500, 5000);
         this.rapidez = 1.2; // Un poco más de rapidez
-        this.dañoBase = 0.0; // No hace daño al jugador directamente
+        this.damageBase = 0.0; // No hace damage al jugador directamente
         this.width = 3.0f; // Boss gigante
         this.height = 3.0f;
         elegirDestinoAleatorio();
@@ -79,20 +79,7 @@ public class BossPeedy extends Enemigo {
             habilidadTimer += deltaSeconds;
             if (habilidadTimer >= tiempoParaHabilidad) {
                 habilidadTimer = 0f;
-                // Elegir habilidad: 30% stun, 35% remolino, 35% volar
-                double r = random.nextDouble();
-                if (r < 0.30) {
-                    iniciarAturdir();
-                } else if (r < 0.65) {
-                    iniciarTeleport();
-                } else {
-                    // Volar (si hay torres, 60% picada, 40% vuelo libre; si no hay, 100% vuelo libre)
-                    if (!torres.isEmpty() && random.nextDouble() < 0.60) {
-                        iniciarPicada(torres);
-                    } else {
-                        iniciarVueloRandom();
-                    }
-                }
+                decidirSiguienteAccion(torres, enemigos);
             }
         } else if (estadoBoss == BossState.STUNNING) {
             animTimer += deltaSeconds;
@@ -156,8 +143,136 @@ public class BossPeedy extends Enemigo {
 
     private void iniciarPicada(List<Torre> torres) {
         estadoBoss = BossState.FLYING;
-        // Elegir torre al azar
-        targetTower = torres.get(random.nextInt(torres.size()));
+        // Encontrar la torre con la mayor amenaza para el malware
+        Torre best = null;
+        double maxThreat = -1.0;
+        for (Torre t : torres) {
+            double threat = 50.0;
+            if (t instanceof TorreInternetExplorer || t instanceof TorreDeHielo || t instanceof TorreElectrica) {
+                threat = 100.0; // Prioridad alta por aturdimiento/congelación
+            } else if (t instanceof TorreMcAfee || t instanceof TorreFirefox || t instanceof TorreDeArea) {
+                threat = 85.0; // Alto DPS
+            } else if (t instanceof TorreMessenger || t instanceof TorreAvast) {
+                threat = 70.0; // DPS medio/soporte
+            } else if (t instanceof TorreFuerte) {
+                threat = 60.0;
+            }
+            if (threat > maxThreat) {
+                maxThreat = threat;
+                best = t;
+            }
+        }
+        targetTower = best;
+    }
+
+    private void decidirSiguienteAccion(List<Torre> torres, List<Enemigo> enemigos) {
+        // 1. Calcular Utilidades
+        double scoreStun = 0;
+        double scoreTeleport = 0;
+        double scorePicada = 0;
+        double scoreVueloRandom = 30.0; // Utilidad base de relocalización
+
+        // A. Utilidad de Aturdir (STUN)
+        double rangoStunSq = 4.0 * 4.0;
+        int activeTowersInRange = 0;
+        int supportTowersInRange = 0;
+        for (Torre t : torres) {
+            if (t.stunTimer <= 0) {
+                double dx = t.getX() - this.getX();
+                double dy = t.getY() - this.getY();
+                if (dx * dx + dy * dy <= rangoStunSq) {
+                    activeTowersInRange++;
+                    if (t instanceof TorreInternetExplorer || t instanceof TorreDeHielo || t instanceof TorreElectrica) {
+                        supportTowersInRange++;
+                    }
+                }
+            }
+        }
+        scoreStun = activeTowersInRange * 25.0 + supportTowersInRange * 15.0;
+
+        // B. Utilidad de Teleportar enemigos (Remolino de bugs)
+        double rangoTeleportSq = 6.0 * 6.0;
+        int eligibleEnemies = 0;
+        int highValueEnemies = 0;
+        for (Enemigo e : enemigos) {
+            if (e != this && !e.isDead()) {
+                double dx = e.getX() - this.getX();
+                double dy = e.getY() - this.getY();
+                if (dx * dx + dy * dy <= rangoTeleportSq) {
+                    eligibleEnemies++;
+                    if (e.getNodosVisitados() <= 8) {
+                        highValueEnemies++;
+                    }
+                }
+            }
+        }
+        scoreTeleport = eligibleEnemies * 20.0 + highValueEnemies * 10.0;
+
+        // C. Utilidad de picada (Destruir torre)
+        if (!torres.isEmpty()) {
+            scorePicada = 45.0;
+            double maxThreat = -1.0;
+            for (Torre t : torres) {
+                double threat = 50.0;
+                if (t instanceof TorreInternetExplorer || t instanceof TorreDeHielo || t instanceof TorreElectrica) {
+                    threat = 100.0;
+                } else if (t instanceof TorreMcAfee || t instanceof TorreFirefox || t instanceof TorreDeArea) {
+                    threat = 85.0;
+                } else if (t instanceof TorreMessenger || t instanceof TorreAvast) {
+                    threat = 70.0;
+                } else if (t instanceof TorreFuerte) {
+                    threat = 60.0;
+                }
+                if (threat > maxThreat) {
+                    maxThreat = threat;
+                }
+            }
+            scorePicada += (maxThreat - 50.0) * 0.5;
+        }
+
+        // D. Utilidad de Vuelo Random (relocalización táctica)
+        double rangoDangerSq = 5.0 * 5.0;
+        int dangerTowers = 0;
+        for (Torre t : torres) {
+            double dx = t.getX() - this.getX();
+            double dy = t.getY() - this.getY();
+            if (dx * dx + dy * dy <= rangoDangerSq) {
+                dangerTowers++;
+            }
+        }
+        if (dangerTowers >= 3) {
+            scoreVueloRandom += 35.0;
+        }
+
+        // 2. Selección probabilística (Ruleta Ponderada)
+        double total = scoreStun + scoreTeleport + scorePicada + scoreVueloRandom;
+        if (total <= 0) {
+            iniciarVueloRandom();
+            return;
+        }
+
+        double r = random.nextDouble() * total;
+        double sum = 0.0;
+
+        sum += scoreStun;
+        if (r < sum) {
+            iniciarAturdir();
+            return;
+        }
+
+        sum += scoreTeleport;
+        if (r < sum) {
+            iniciarTeleport();
+            return;
+        }
+
+        sum += scorePicada;
+        if (r < sum) {
+            iniciarPicada(torres);
+            return;
+        }
+
+        iniciarVueloRandom();
     }
 
     private void iniciarVueloRandom() {

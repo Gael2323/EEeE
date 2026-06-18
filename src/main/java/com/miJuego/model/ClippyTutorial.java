@@ -6,8 +6,11 @@ package com.miJuego.model;
  */
 public class ClippyTutorial {
     public enum Estado {
-        INTRO_1,           // Alerta sobre buddy.exe
-        INTRO_2,           // Explicación de cómo equipar torre
+        INTRO_1,           // Agradecimiento y verificar qué sucede
+        CINEMATIC_WALK,    // Caminata del PopUp corruptor. Sin globo.
+        CLIPPY_REACTION,   // "Wow. eso no es nada bueno..."
+        SHOW_UNLOCK_POPUP, // Muestra cartel emergente You_Win_Torre_Antivirus.png
+        INTRO_2,           // Explicación de cómo comprar/colocar
         WAIT_PLACE,        // Esperando colocación de la primera torre
         PLACE_SUCCESS,     // Éxito y feedback del cursor
         WAIT_START_WAVE,   // Explicación de iniciar la oleada
@@ -128,10 +131,19 @@ public class ClippyTutorial {
     public String[] getLines() {
         return switch (estadoActual) {
             case INTRO_1 -> new String[]{
-                "¡Hola! El virus buddy.exe está",
-                "enviando ventanas emergentes y",
-                "letras 'A' a dañar el documento.",
-                "¡Tenemos que defendernos!"
+                "Muchas gracias por tu ayuda,",
+                "ahora vamos a ver qué sucede",
+                "con este documento."
+            };
+            case CLIPPY_REACTION -> new String[]{
+                "Wow. Eso no es nada bueno, no sé",
+                "de dónde salió pero no puedo contener",
+                "la amenaza yo solo, me vendría",
+                "bien tu ayuda, usa esto."
+            };
+            case SHOW_UNLOCK_POPUP -> new String[]{
+                "¡Haz clic en Aceptar en el cartel",
+                "emergente para recibir la ayuda!"
             };
             case INTRO_2 -> new String[]{
                 "Para hacerlo, primero debes",
@@ -170,7 +182,9 @@ public class ClippyTutorial {
      */
     public String getExpression() {
         return switch (estadoActual) {
-            case INTRO_1 -> "preocupado";
+            case INTRO_1 -> "feliz";
+            case CLIPPY_REACTION -> "sorprendido";
+            case SHOW_UNLOCK_POPUP -> "entusiasmado";
             case INTRO_2 -> "leyendo";
             case WAIT_PLACE -> "solicitando";
             case PLACE_SUCCESS -> "feliz";
